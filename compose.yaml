@@ -1,0 +1,66 @@
+name: ai-career-intelligence
+
+x-app: &app
+  image: ai-career-intelligence:local
+  build: .
+  environment:
+    APP_NAME: ${APP_NAME:-AI Career Intelligence}
+    APP_ENV: local
+    DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-career}:${POSTGRES_PASSWORD:-career_local_only}@postgres:5432/${POSTGRES_DB:-career}
+    QDRANT_URL: http://qdrant:6333
+    DEPENDENCY_TIMEOUT_SECONDS: ${DEPENDENCY_TIMEOUT_SECONDS:-2}
+    DB_STATEMENT_TIMEOUT_MS: ${DB_STATEMENT_TIMEOUT_MS:-5000}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-career}
+      POSTGRES_USER: ${POSTGRES_USER:-career}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-career_local_only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    ports:
+      - "127.0.0.1:${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    # Do not assume the official image contains curl/wget. /ready probes /readyz.
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *app
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5)"]
+      interval: 5s
+      timeout: 6s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  qdrant_data:

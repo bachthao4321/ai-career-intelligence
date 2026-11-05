@@ -1,0 +1,49 @@
+[project]
+name = "ai-career-intelligence"
+version = "0.1.0"
+description = "Career intelligence API: job search, analytics, and CV matching."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic>=1.16,<2",
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "psycopg[binary]>=3.2,<4",
+    "pydantic-settings>=2.8,<3",
+    "sqlalchemy[asyncio]>=2.0.40,<2.1",
+    "uvicorn>=0.34,<1",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15,<2",
+    "pytest>=8.3,<10",
+    "pytest-asyncio>=0.26,<2",
+    "ruff>=0.11,<1",
+]
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+python_version = "3.12"
+strict = true
+files = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["integration: requires PostgreSQL and Qdrant; opt in with RUN_INTEGRATION=1"]
