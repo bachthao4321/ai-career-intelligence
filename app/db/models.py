@@ -1,8 +1,21 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import CheckConstraint, DateTime, Index, String, Text, UniqueConstraint, func, text
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -36,3 +49,115 @@ class Job(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    source_terms_url: Mapped[str | None] = mapped_column(Text)
+    raw_hash: Mapped[str | None] = mapped_column(String(64))
+    workplace_type: Mapped[str] = mapped_column(String(20), server_default="unknown")
+    language: Mapped[str | None] = mapped_column(String(2))
+    structured_skills: Mapped[list[str]] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+
+
+class Skill(Base):
+    __tablename__ = "skills"
+    slug: Mapped[str] = mapped_column(String(80), primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+
+
+class SkillAlias(Base):
+    __tablename__ = "skill_aliases"
+    normalized_alias: Mapped[str] = mapped_column(String(100), primary_key=True)
+    surface: Mapped[str] = mapped_column(String(100))
+    skill_slug: Mapped[str] = mapped_column(ForeignKey("skills.slug"))
+    origin: Mapped[str] = mapped_column(String(20))
+    reviewed_by: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class JobSnapshot(Base):
+    __tablename__ = "job_snapshots"
+    __table_args__ = (UniqueConstraint("job_id", "raw_hash", name="uq_job_snapshots_job_raw_hash"),)
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    raw_hash: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    source_url: Mapped[str] = mapped_column(Text)
+    source_terms_url: Mapped[str] = mapped_column(Text)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ExtractionRun(Base):
+    __tablename__ = "extraction_runs"
+    __table_args__ = (
+        UniqueConstraint(
+            "job_id",
+            "content_hash",
+            "extractor_version",
+            "catalog_version",
+            name="uq_extraction_runs_cache",
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    extractor_version: Mapped[str] = mapped_column(String(150))
+    catalog_version: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20))
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    usage: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class JobSkill(Base):
+    __tablename__ = "job_skills"
+    __table_args__ = (
+        CheckConstraint(
+            "start_offset >= 0 AND end_offset > start_offset", name="ck_job_skills_offsets"
+        ),
+        CheckConstraint("confidence >= 0 AND confidence <= 1", name="ck_job_skills_confidence"),
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), primary_key=True
+    )
+    skill_slug: Mapped[str] = mapped_column(ForeignKey("skills.slug"), primary_key=True)
+    extraction_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("extraction_runs.id", ondelete="CASCADE")
+    )
+    content_hash: Mapped[str] = mapped_column(String(64))
+    source_field: Mapped[str] = mapped_column(String(30))
+    evidence: Mapped[str] = mapped_column(Text)
+    start_offset: Mapped[int] = mapped_column(Integer)
+    end_offset: Mapped[int] = mapped_column(Integer)
+    confidence: Mapped[float] = mapped_column(Float)
+    method: Mapped[str] = mapped_column(String(20))
+
+
+class AliasCandidate(Base):
+    __tablename__ = "alias_candidates"
+    __table_args__ = (
+        UniqueConstraint("normalized_alias", "skill_slug", name="uq_alias_candidates_alias_skill"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    normalized_alias: Mapped[str] = mapped_column(String(100))
+    surface: Mapped[str] = mapped_column(String(100))
+    skill_slug: Mapped[str] = mapped_column(ForeignKey("skills.slug"))
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    mention: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    confidence: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(20), server_default="pending")
+    reviewed_by: Mapped[str | None] = mapped_column(String(100))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LlmDailyUsage(Base):
+    __tablename__ = "llm_daily_usage"
+    __table_args__ = (CheckConstraint("calls >= 0", name="ck_llm_daily_usage_calls"),)
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    calls: Mapped[int] = mapped_column(Integer, server_default="0")

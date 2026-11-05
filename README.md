@@ -4,7 +4,9 @@ Nền tảng hỗ trợ tìm việc IT bằng ngôn ngữ tự nhiên, phân tí
 
 ## Trạng thái
 
-M0: đã triển khai FastAPI skeleton, health/readiness, PostgreSQL/Qdrant Compose, schema jobs, Alembic migration, dependency lock và CI. Chưa triển khai ingestion, search, LLM, analytics hay CV matching.
+M0 đã hoàn thành. M1 đã có importer idempotent, lịch sử nguồn, curated skill catalog, extraction kèm evidence, alias review, quota DeepSeek và API đọc jobs. Dataset kiểm chứng local: 145 tin Data/IT từ API JobTech (CC0); xem [báo cáo M1](docs/M1_VALIDATION.md).
+
+Search, embeddings, LangGraph analytics và CV matching chưa triển khai. DeepSeek adapter đã kiểm thử bằng mock, chưa gọi model trả phí để đánh giá chất lượng thực tế.
 
 Các con số trong mô tả dự án ban đầu (1.081 jobs, 323 tests, 12/12 routing, 5/5 SQL, P@5 0,34/0,88) là mốc tham chiếu cần kiểm chứng, không phải kết quả của repository này.
 
@@ -58,6 +60,28 @@ Integration tests dùng PostgreSQL và Qdrant thật; kiểm tra migration upgra
 
 CI chạy lint/format, type checks, unit tests và một job riêng build/chạy toàn bộ Compose stack cùng integration tests, không cần API key hoặc LLM trả phí.
 
+## M1: Nạp dữ liệu và xem kỹ năng
+
+Chạy các lệnh dưới đây trên host sau khi đã tạo `.env`, `uv sync --frozen` và khởi động Compose. Có thể kiểm thử offline bằng dữ liệu giả lập được ghi rõ nhãn:
+
+```bash
+uv run --frozen python -m app.ingestion.cli import examples/jobs.synthetic.json
+```
+
+Hoặc lấy một mẫu Data/IT thật từ JobTech. Lệnh fetch lưu và tái sử dụng snapshot theo ngày UTC, tối đa 200 tin/lần; API chỉ là nguồn mẫu, không đại diện toàn thị trường:
+
+```bash
+uv run --frozen python -m app.ingestion.cli fetch jobtech --limit 150
+# Dùng đường dẫn snapshot được lệnh fetch in ra.
+uv run --frozen python -m app.ingestion.cli import data/raw/jobtech-YYYY-MM-DD.json
+uv run --frozen python -m app.ingestion.cli report --output data/processed/m1-review.json
+curl --fail 'http://localhost:8000/jobs?limit=5'
+```
+
+`GET /jobs/{job_id}` trả skills cùng evidence, field và offsets. API giữ tên nguồn/link gốc để attribution; không trả raw snapshots. Chạy lại import không tạo trùng cùng `(source, source_job_id)`; nội dung thay đổi được cập nhật và lưu snapshot, extraction được cache theo content/model/rule/catalog version.
+
+Mặc định chỉ dùng matcher curated, không tốn phí LLM. Skills hiện là **các thuật ngữ xuất hiện trong nguồn**, chưa phân biệt bắt buộc, ưu tiên hay phủ định. Không tìm thấy skill không đồng nghĩa công việc không cần skill đó. Xem [hướng dẫn ingestion](docs/INGESTION.md) cho DeepSeek, duyệt alias và giới hạn dữ liệu.
+
 ## Phạm vi dự kiến
 
 - Tìm việc: BM25 + dense embeddings + Reciprocal Rank Fusion, sau đó LLM reranking có kiểm tra đầu ra.
@@ -71,5 +95,7 @@ Stack dự kiến: Python, FastAPI, Pydantic, SQLAlchemy/Alembic, LangChain, Lan
 
 - [Kế hoạch triển khai, milestones và điều kiện nghiệm thu](docs/IMPLEMENTATION_PLAN.md)
 - [Cấu hình local, migration và troubleshooting](docs/DEVELOPMENT.md)
+- [Ingestion, nguồn dữ liệu và alias review](docs/INGESTION.md)
+- [Kết quả kiểm chứng M1](docs/M1_VALIDATION.md)
 
 Chỉ thêm thành tích vào README/CV sau khi có dữ liệu, lệnh chạy và artifact chứng minh.

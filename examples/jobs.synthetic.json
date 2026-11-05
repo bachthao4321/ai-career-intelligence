@@ -1,0 +1,31 @@
+[
+  {
+    "source": "synthetic",
+    "source_job_id": "vietnam-backend-demo",
+    "source_url": "https://example.com/synthetic/backend",
+    "source_terms_url": "https://example.com/synthetic-data",
+    "title": "Lập trình viên Backend Python — dữ liệu giả lập",
+    "company": "Synthetic Demo Company",
+    "location": "Hồ Chí Minh, Việt Nam",
+    "workplace_type": "hybrid",
+    "language": "vi",
+    "description": "Đây là tin giả lập để kiểm thử offline, không phải cơ hội tuyển dụng thật. Xây API bằng Python, FastAPI và PostgreSQL. Dùng Docker và GitHub Actions trong quy trình phát triển.",
+    "fetched_at": "2026-11-05T00:00:00Z",
+    "raw_payload": {"synthetic": true}
+  },
+  {
+    "source": "synthetic",
+    "source_job_id": "europe-frontend-demo",
+    "source_url": "https://example.com/synthetic/frontend",
+    "source_terms_url": "https://example.com/synthetic-data",
+    "title": "Frontend Engineer — synthetic fixture",
+    "company": "Synthetic Demo Company",
+    "location": "Europe (synthetic eligibility)",
+    "workplace_type": "remote",
+    "language": "en",
+    "description": "Synthetic fixture for offline tests; this is not a real vacancy. Build user interfaces with TypeScript and React. Use Playwright for browser tests.",
+    "structured_skills": ["TypeScript", "React", "Playwright"],
+    "fetched_at": "2026-11-05T00:00:00Z",
+    "raw_payload": {"synthetic": true}
+  }
+]

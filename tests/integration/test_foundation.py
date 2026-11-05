@@ -1,59 +1,22 @@
 import asyncio
 import os
-import subprocess
-import sys
 import uuid
-from collections.abc import AsyncIterator
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect, select, text
-from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import Settings
 from app.db.models import Job
 from app.main import create_app
+from tests.db_helpers import migrate
 
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(os.getenv("RUN_INTEGRATION") != "1", reason="Set RUN_INTEGRATION=1"),
 ]
-
-
-def migrate(url: str, *args: str) -> None:
-    result = subprocess.run(
-        [sys.executable, "-m", "alembic", *args],
-        env={**os.environ, "DATABASE_URL": url},
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    assert result.returncode == 0, result.stdout + result.stderr
-
-
-@pytest.fixture
-async def isolated_database() -> AsyncIterator[tuple[AsyncEngine, str]]:
-    settings = Settings()
-    url = settings.database_url.get_secret_value()
-    admin_engine = create_async_engine(url)
-    schema = "test_m0_" + uuid.uuid4().hex
-    isolated_url = make_url(url).update_query_dict({"options": f"-csearch_path={schema}"})
-    isolated_dsn = isolated_url.render_as_string(hide_password=False)
-    engine = create_async_engine(isolated_dsn)
-    try:
-        async with admin_engine.begin() as connection:
-            await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
-        await asyncio.to_thread(migrate, isolated_dsn, "upgrade", "head")
-        yield engine, isolated_dsn
-    finally:
-        await engine.dispose()
-        async with admin_engine.begin() as connection:
-            # Only remove the UUID-named schema created by this fixture.
-            await connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
-        await admin_engine.dispose()
 
 
 async def test_migration_round_trip_and_model_drift(
@@ -65,7 +28,7 @@ async def test_migration_round_trip_and_model_drift(
     async with engine.connect() as connection:
         assert (
             await connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0001_create_jobs"
+            == "0002_ingestion"
         )
         columns = await connection.run_sync(lambda conn: inspect(conn).get_columns("jobs"))
         assert {column["name"] for column in columns} >= {

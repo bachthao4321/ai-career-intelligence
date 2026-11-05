@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     dependency_timeout_seconds: float = Field(default=2, ge=0.1, le=30)
     db_statement_timeout_ms: int = Field(default=5000, ge=100, le=60000)
+    deepseek_api_key: SecretStr | None = None
+    deepseek_model: str | None = Field(default=None, min_length=1, max_length=100)
+    deepseek_daily_call_limit: int = Field(default=0, ge=0, le=100)
 
     @field_validator("database_url")
     @classmethod

@@ -47,6 +47,11 @@ jobs:
           curl --fail http://localhost:8000/ready
           docker compose run --rm --no-deps migrate alembic check
       - run: uv run --frozen pytest -m integration
+      - name: Exercise operator CLI and job API with synthetic data
+        run: |
+          uv run --frozen python -m app.ingestion.cli import examples/jobs.synthetic.json
+          uv run --frozen python -m app.ingestion.cli import examples/jobs.synthetic.json
+          curl --fail 'http://localhost:8000/jobs?limit=1'
       - name: Capture service logs on failure
         if: failure()
         run: docker compose logs --no-color

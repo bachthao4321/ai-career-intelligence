@@ -1,0 +1,110 @@
+import uuid
+from collections.abc import AsyncIterator
+from datetime import datetime
+from typing import Annotated, cast
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+
+from app.db.models import Job, JobSkill
+
+router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    engine = cast(AsyncEngine, request.app.state.engine)
+    try:
+        async with async_sessionmaker(engine)() as session:
+            yield session
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="Job storage unavailable") from exc
+
+
+class JobSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    title: str
+    company: str | None
+    location: str | None
+    workplace_type: str
+    source: str
+    source_job_id: str
+    source_url: str
+    source_terms_url: str | None
+    published_at: datetime | None
+    fetched_at: datetime
+
+
+class JobPage(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[JobSummary]
+
+
+class SkillEvidence(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    skill_slug: str
+    source_field: str
+    evidence: str
+    start_offset: int
+    end_offset: int
+    confidence: float
+    method: str
+
+
+class JobDetail(JobSummary):
+    description: str
+    structured_skills: list[str]
+    content_hash: str
+    skills: list[SkillEvidence]
+    note: str = (
+        "Skills are literal mentions, not proof of required proficiency. "
+        "Attribution: see source and source_url."
+    )
+
+
+@router.get("", response_model=JobPage)
+async def list_jobs(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
+) -> JobPage:
+    total = await session.scalar(select(func.count()).select_from(Job)) or 0
+    jobs = (
+        await session.scalars(
+            select(Job).order_by(Job.created_at.desc(), Job.id).limit(limit).offset(offset)
+        )
+    ).all()
+    return JobPage(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=[JobSummary.model_validate(job) for job in jobs],
+    )
+
+
+@router.get("/{job_id}", response_model=JobDetail)
+async def job_detail(
+    job_id: uuid.UUID, session: Annotated[AsyncSession, Depends(get_session)]
+) -> JobDetail:
+    job = await session.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    skills = (
+        await session.scalars(
+            select(JobSkill)
+            .where(JobSkill.job_id == job_id, JobSkill.content_hash == job.content_hash)
+            .order_by(JobSkill.skill_slug)
+        )
+    ).all()
+    return JobDetail(
+        **JobSummary.model_validate(job).model_dump(),
+        description=job.description,
+        structured_skills=job.structured_skills,
+        content_hash=job.content_hash,
+        skills=[SkillEvidence.model_validate(skill) for skill in skills],
+    )
