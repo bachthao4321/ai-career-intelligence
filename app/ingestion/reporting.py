@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.db.models import AliasCandidate, ExtractionRun, Job, JobSkill, JobSnapshot
 from app.ingestion.contracts import EvidenceField
+from app.ingestion.policies import local_research_only
 
 
 async def build_report(engine: AsyncEngine, *, sample_size: int = 10) -> dict[str, Any]:
@@ -71,6 +72,9 @@ async def build_report(engine: AsyncEngine, *, sample_size: int = 10) -> dict[st
                     "source_job_id": job.source_job_id,
                     "source_url": job.source_url,
                     "title": job.title,
+                    "usage_scope": "local_research_only"
+                    if local_research_only(job.source, job.source_url)
+                    else "source_terms_apply",
                     "skills": by_job.get(str(job.id), []),
                     "review_status": "requires_manual_review",
                 }
@@ -93,6 +97,9 @@ async def build_report(engine: AsyncEngine, *, sample_size: int = 10) -> dict[st
         return {
             "jobs": len(jobs),
             "sources": source_counts,
+            "local_research_jobs": sum(
+                local_research_only(job.source, job.source_url) for job in jobs
+            ),
             "skill_assignments": len(skills),
             "jobs_without_curated_mentions": sum(str(job.id) not in by_job for job in jobs),
             "top_skills": sorted(skill_counts.items(), key=lambda pair: (-pair[1], pair[0])),

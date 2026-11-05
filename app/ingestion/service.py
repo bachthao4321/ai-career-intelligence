@@ -25,6 +25,7 @@ from app.ingestion.extraction import (
     validate_mentions,
 )
 from app.ingestion.llm import DeepSeekExtractor, ExtractionError, reserve_daily_call
+from app.ingestion.policies import local_research_only
 
 
 @dataclass
@@ -182,7 +183,9 @@ async def import_records(
             usage: dict[str, Any] = {}
             error: str | None = None
             if extractor:
-                if report.llm_calls >= max_calls:
+                if local_research_only(record.source, str(record.source_url)):
+                    error = "source_local_research_only"
+                elif report.llm_calls >= max_calls:
                     error = "import_call_limit"
                 elif record.input_characters > 30_000:
                     error = "input_too_long"

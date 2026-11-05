@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.core.config import Settings
 from app.db.models import AliasCandidate
 from app.db.session import create_engine
+from app.ingestion.itviec import fetch_itviec
 from app.ingestion.llm import DeepSeekExtractor
 from app.ingestion.reporting import build_report
 from app.ingestion.service import import_records, review_alias
@@ -25,8 +26,8 @@ def parser() -> argparse.ArgumentParser:
     )
     commands = root.add_subparsers(dest="command", required=True)
     fetch = commands.add_parser("fetch")
-    fetch.add_argument("source", choices=["jobtech", "remotive"])
-    fetch.add_argument("--limit", type=int, default=150)
+    fetch.add_argument("source", choices=["jobtech", "remotive", "itviec"])
+    fetch.add_argument("--limit", type=int)
     ingest = commands.add_parser("import")
     ingest.add_argument("path", type=Path)
     ingest.add_argument(
@@ -56,8 +57,11 @@ def write_report(path: Path, value: dict[str, Any]) -> None:
 async def run(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "fetch":
         path = Path("data/raw") / f"{args.source}-{datetime.now(UTC).date()}.json"
-        fetcher = fetch_jobtech if args.source == "jobtech" else fetch_remotive
-        await fetcher(path, limit=args.limit)
+        fetcher = {"jobtech": fetch_jobtech, "remotive": fetch_remotive, "itviec": fetch_itviec}[
+            args.source
+        ]
+        limit = args.limit if args.limit is not None else (10 if args.source == "itviec" else 150)
+        await fetcher(path, limit=limit)
         records, errors = await asyncio.to_thread(load_records, path)
         return {"snapshot": str(path), "valid_jobs": len(records), "skipped": errors}
     settings = Settings()

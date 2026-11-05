@@ -1,17 +1,28 @@
 import uuid
 from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Annotated, cast
+from typing import Annotated, Literal, Self, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func, select
+from pydantic import BaseModel, ConfigDict, model_validator
+from sqlalchemy import and_, func, select, true
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.db.models import Job, JobSkill
+from app.ingestion.policies import LOCAL_ONLY_SOURCES, LOCAL_ONLY_URL_PATTERN, local_research_only
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+def permitted_jobs(request: Request) -> ColumnElement[bool]:
+    if request.app.state.app_env == "local":
+        return true()
+    return and_(
+        Job.source.not_in(LOCAL_ONLY_SOURCES),
+        ~Job.source_url.op("~*")(LOCAL_ONLY_URL_PATTERN),
+    )
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
@@ -36,6 +47,16 @@ class JobSummary(BaseModel):
     source_terms_url: str | None
     published_at: datetime | None
     fetched_at: datetime
+    usage_scope: Literal["local_research_only", "source_terms_apply"] = "source_terms_apply"
+
+    @model_validator(mode="after")
+    def set_usage_scope(self) -> Self:
+        self.usage_scope = (
+            "local_research_only"
+            if local_research_only(self.source, self.source_url)
+            else "source_terms_apply"
+        )
+        return self
 
 
 class JobPage(BaseModel):
@@ -69,14 +90,20 @@ class JobDetail(JobSummary):
 
 @router.get("", response_model=JobPage)
 async def list_jobs(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
 ) -> JobPage:
-    total = await session.scalar(select(func.count()).select_from(Job)) or 0
+    allowed = permitted_jobs(request)
+    total = await session.scalar(select(func.count()).select_from(Job).where(allowed)) or 0
     jobs = (
         await session.scalars(
-            select(Job).order_by(Job.created_at.desc(), Job.id).limit(limit).offset(offset)
+            select(Job)
+            .where(allowed)
+            .order_by(Job.created_at.desc(), Job.id)
+            .limit(limit)
+            .offset(offset)
         )
     ).all()
     return JobPage(
@@ -89,9 +116,9 @@ async def list_jobs(
 
 @router.get("/{job_id}", response_model=JobDetail)
 async def job_detail(
-    job_id: uuid.UUID, session: Annotated[AsyncSession, Depends(get_session)]
+    request: Request, job_id: uuid.UUID, session: Annotated[AsyncSession, Depends(get_session)]
 ) -> JobDetail:
-    job = await session.get(Job, job_id)
+    job = await session.scalar(select(Job).where(Job.id == job_id, permitted_jobs(request)))
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     skills = (

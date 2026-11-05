@@ -30,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     application = FastAPI(title=config.app_name, version="0.1.0", lifespan=lifespan)
     application.state.dependency_timeout_seconds = config.dependency_timeout_seconds
+    application.state.app_env = config.app_env
     application.include_router(router)
     application.include_router(jobs_router)
     return application

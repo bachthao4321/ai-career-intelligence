@@ -218,9 +218,16 @@ def load_records(path: Path) -> tuple[list[JobRecord], list[dict[str, Any]]]:
     elif isinstance(data, list):
         rows = data
         adapter = JobRecord.model_validate
+    elif isinstance(data, dict) and data.get("source") == "itviec":
+        from app.ingestion.itviec import adapt_itviec
+
+        fetched = datetime.fromisoformat(data["fetched_at"])
+        rows = data["payload"]["jobs"]
+        adapter = partial(adapt_itviec, fetched_at=fetched)
+        errors.extend(data.get("errors", []))
     else:
         raise ValueError(
-            "Expected a Remotive snapshot or JSON array of canonical JobRecord objects"
+            "Expected a supported source snapshot or JSON array of canonical JobRecord objects"
         )
     if len(rows) > 5000:
         raise ValueError("At most 5000 records may be imported per file")

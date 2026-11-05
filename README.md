@@ -4,7 +4,7 @@ Nền tảng hỗ trợ tìm việc IT bằng ngôn ngữ tự nhiên, phân tí
 
 ## Trạng thái
 
-M0 đã hoàn thành. M1 đã có importer idempotent, lịch sử nguồn, curated skill catalog, extraction kèm evidence, alias review, quota DeepSeek và API đọc jobs. Dataset kiểm chứng local: 145 tin Data/IT từ API JobTech (CC0); xem [báo cáo M1](docs/M1_VALIDATION.md).
+M0 đã hoàn thành. M1 đã có importer idempotent, lịch sử nguồn, curated skill catalog, extraction kèm evidence, alias review, quota DeepSeek và API đọc jobs. Dataset local hiện có 145 tin Data/IT JobTech (CC0) và 10 tin ITviec dành riêng cho nghiên cứu cá nhân local. Xem [baseline M1](docs/M1_VALIDATION.md) và [nguồn Việt Nam](docs/VIETNAM_SOURCES.md).
 
 Search, embeddings, LangGraph analytics và CV matching chưa triển khai. DeepSeek adapter đã kiểm thử bằng mock, chưa gọi model trả phí để đánh giá chất lượng thực tế.
 
@@ -82,6 +82,15 @@ curl --fail 'http://localhost:8000/jobs?limit=5'
 
 Mặc định chỉ dùng matcher curated, không tốn phí LLM. Skills hiện là **các thuật ngữ xuất hiện trong nguồn**, chưa phân biệt bắt buộc, ưu tiên hay phủ định. Không tìm thấy skill không đồng nghĩa công việc không cần skill đó. Xem [hướng dẫn ingestion](docs/INGESTION.md) cho DeepSeek, duyệt alias và giới hạn dữ liệu.
 
+Lấy mẫu nhỏ ITviec để thử nghiệm cá nhân local:
+
+```bash
+uv run --frozen python -m app.ingestion.cli fetch itviec --limit 10
+uv run --frozen python -m app.ingestion.cli import data/raw/itviec-YYYY-MM-DD.json
+```
+
+Adapter chỉ đọc trang công khai/JSON-LD, kiểm tra robots.txt, chờ ít nhất 2 giây giữa request và dừng khi gặp 401/403/429. Mẫu mặc định 10, tối đa 20 tin, cache theo ngày. Đây **không phải nguồn CC0**: dữ liệu gốc không được commit; API gắn `usage_scope=local_research_only`, ẩn nguồn này khi `APP_ENV` khác `local` và importer không gửi nó tới DeepSeek. Cần xác minh quyền phù hợp trước khi dùng cho public demo. Chưa có fetcher TopCV.
+
 ## Phạm vi dự kiến
 
 - Tìm việc: BM25 + dense embeddings + Reciprocal Rank Fusion, sau đó LLM reranking có kiểm tra đầu ra.
@@ -97,5 +106,6 @@ Stack dự kiến: Python, FastAPI, Pydantic, SQLAlchemy/Alembic, LangChain, Lan
 - [Cấu hình local, migration và troubleshooting](docs/DEVELOPMENT.md)
 - [Ingestion, nguồn dữ liệu và alias review](docs/INGESTION.md)
 - [Kết quả kiểm chứng M1](docs/M1_VALIDATION.md)
+- [ITviec: phạm vi dữ liệu và kiểm chứng](docs/VIETNAM_SOURCES.md)
 
 Chỉ thêm thành tích vào README/CV sau khi có dữ liệu, lệnh chạy và artifact chứng minh.
