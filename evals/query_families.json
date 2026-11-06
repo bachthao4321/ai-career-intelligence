@@ -1,0 +1,22 @@
+[
+  {"id":"python","split":"dev","skill":"python","queries":{"vi":"Tìm việc lập trình Python","en":"Develop services using the programming language named after a snake","sv":"Utveckla tjänster med programmeringsspråket Python"}},
+  {"id":"sql","split":"dev","skill":"sql","queries":{"vi":"Tìm việc sử dụng SQL","en":"Query relational tables and join datasets using a database query language","sv":"Arbeta med frågor mot relationsdatabaser och SQL"}},
+  {"id":"cpp","split":"dev","skill":"cpp","queries":{"vi":"Tìm việc lập trình C++","en":"Develop high performance software with C plus plus","sv":"Utveckla högpresterande programvara med C++"}},
+  {"id":"java","split":"dev","skill":"java","queries":{"vi":"Tìm việc phát triển Java","en":"Develop enterprise applications for the Java virtual machine","sv":"Utveckla affärsapplikationer med Java"}},
+  {"id":"dotnet","split":"dev","skill":"dotnet","queries":{"vi":"Tìm việc sử dụng nền tảng .NET","en":"Build applications on Microsoft's dot net platform","sv":"Bygga applikationer på Microsofts .NET-plattform"}},
+  {"id":"kubernetes","split":"dev","skill":"kubernetes","queries":{"vi":"Tìm việc Kubernetes","en":"Operate clusters that orchestrate containerized applications","sv":"Drifta kluster för orkestrering av containrar"}},
+  {"id":"linux","split":"dev","skill":"linux","queries":{"vi":"Tìm việc quản trị Linux","en":"Administer servers running the open source penguin operating system","sv":"Administrera servrar med Linux som operativsystem"}},
+  {"id":"typescript","split":"dev","skill":"typescript","queries":{"vi":"Tìm việc lập trình TypeScript","en":"Develop web applications using JavaScript with static types","sv":"Utveckla webbapplikationer med typad JavaScript"}},
+  {"id":"react","split":"dev","skill":"react","queries":{"vi":"Tìm việc xây giao diện với React","en":"Build browser user interfaces using React components","sv":"Bygga användargränssnitt i webbläsaren med React"}},
+  {"id":"azure","split":"dev","skill":"azure","queries":{"vi":"Tìm việc dùng nền tảng Azure","en":"Work with Microsoft's cloud platform and cloud infrastructure","sv":"Arbeta med Microsofts molnplattform"}},
+  {"id":"aws","split":"dev","skill":"aws","queries":{"vi":"Tìm việc dùng AWS","en":"Build and operate applications on Amazon's cloud services","sv":"Arbeta med Amazons molntjänster"}},
+  {"id":"terraform","split":"dev","skill":"terraform","queries":{"vi":"Tìm việc dùng Terraform","en":"Provision infrastructure as code using Terraform","sv":"Provisionera infrastruktur som kod med Terraform"}},
+  {"id":"gcp","split":"test","skill":"gcp","queries":{"vi":"Tìm việc dùng Google Cloud","en":"Build and operate applications on Google's cloud platform","sv":"Arbeta med Googles molnplattform"}},
+  {"id":"docker","split":"test","skill":"docker","queries":{"vi":"Tìm việc dùng Docker","en":"Package services into portable containers using Docker","sv":"Paketera tjänster i portabla containrar med Docker"}},
+  {"id":"ansible","split":"test","skill":"ansible","queries":{"vi":"Tìm việc dùng Ansible","en":"Automate server configuration with Ansible playbooks","sv":"Automatisera serverkonfiguration med Ansible"}},
+  {"id":"postgresql","split":"test","skill":"postgresql","queries":{"vi":"Tìm việc dùng PostgreSQL","en":"Work with the open source Postgres relational database","sv":"Arbeta med relationsdatabasen Postgres"}},
+  {"id":"mysql","split":"test","skill":"mysql","queries":{"vi":"Tìm việc dùng MySQL","en":"Work with the My SQL relational database engine","sv":"Arbeta med relationsdatabasen MySQL"}},
+  {"id":"angular","split":"test","skill":"angular","queries":{"vi":"Tìm việc phát triển Angular","en":"Build frontend web applications with Google's Angular framework","sv":"Utveckla webbgränssnitt med ramverket Angular"}},
+  {"id":"kotlin","split":"test","skill":"kotlin","queries":{"vi":"Tìm việc lập trình Kotlin","en":"Develop Android applications using Kotlin","sv":"Utveckla Android-appar med Kotlin"}},
+  {"id":"swift","split":"test","skill":"swift","queries":{"vi":"Tìm việc lập trình Swift","en":"Develop native Apple applications using Swift","sv":"Utveckla appar för Apple-enheter med Swift"}}
+]

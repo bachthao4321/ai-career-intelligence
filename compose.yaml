@@ -10,6 +10,14 @@ x-app: &app
     QDRANT_URL: http://qdrant:6333
     DEPENDENCY_TIMEOUT_SECONDS: ${DEPENDENCY_TIMEOUT_SECONDS:-2}
     DB_STATEMENT_TIMEOUT_MS: ${DB_STATEMENT_TIMEOUT_MS:-5000}
+    EMBEDDING_MODEL_DIR: /models/multilingual-minilm
+    EMBEDDING_THREADS: ${EMBEDDING_THREADS:-2}
+    QDRANT_COLLECTION_PREFIX: ${QDRANT_COLLECTION_PREFIX:-career_jobs}
+    RRF_K: ${RRF_K:-60}
+    RRF_BM25_WEIGHT: ${RRF_BM25_WEIGHT:-0.5}
+    RRF_DENSE_WEIGHT: ${RRF_DENSE_WEIGHT:-1}
+  volumes:
+    - ./models:/models:ro
 
 services:
   postgres:

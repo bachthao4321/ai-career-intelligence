@@ -6,11 +6,16 @@ from fastapi import FastAPI
 
 from app.api.health import DependencyProbes, router
 from app.api.jobs import router as jobs_router
+from app.api.search import router as search_router
 from app.core.config import Settings
 from app.db.session import create_engine
+from app.retrieval.embeddings import Embedder, LocalMiniLM
+from app.retrieval.indexing import namespace
+from app.retrieval.qdrant import QdrantStore
+from app.retrieval.service import SearchService
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, embedder: Embedder | None = None) -> FastAPI:
     config = settings if settings is not None else Settings()
 
     @asynccontextmanager
@@ -24,7 +29,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 trust_env=False,
             ) as client:
                 app.state.probes = DependencyProbes(engine, client)
-                yield
+                encoder = embedder or LocalMiniLM(
+                    config.embedding_model_dir, threads=config.embedding_threads
+                )
+                async with httpx.AsyncClient(
+                    base_url=config.qdrant_url,
+                    timeout=config.vector_timeout_seconds,
+                    trust_env=False,
+                ) as vector_client:
+                    store = QdrantStore(
+                        vector_client, namespace(config, encoder), encoder.dimension
+                    )
+                    app.state.search_service = SearchService(engine, config, encoder, store)
+                    yield
         finally:
             await engine.dispose()
 
@@ -33,4 +50,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.app_env = config.app_env
     application.include_router(router)
     application.include_router(jobs_router)
+    application.include_router(search_router)
     return application

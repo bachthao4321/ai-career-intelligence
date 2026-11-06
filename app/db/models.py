@@ -161,3 +161,30 @@ class LlmDailyUsage(Base):
     __table_args__ = (CheckConstraint("calls >= 0", name="ck_llm_daily_usage_calls"),)
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     calls: Mapped[int] = mapped_column(Integer, server_default="0")
+
+
+class VectorIndexState(Base):
+    __tablename__ = "vector_index_states"
+    namespace: Mapped[str] = mapped_column(String(150), primary_key=True)
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), primary_key=True
+    )
+    index_hash: Mapped[str] = mapped_column(String(64))
+    version_key: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20))
+    point_ids: Mapped[list[str]] = mapped_column(JSONB)
+    truncated: Mapped[bool] = mapped_column(server_default=text("false"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class IndexingRun(Base):
+    __tablename__ = "indexing_runs"
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    namespace: Mapped[str] = mapped_column(String(150), index=True)
+    model_signature: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20))
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

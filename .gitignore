@@ -28,6 +28,8 @@ uploads/
 backups/
 storage/
 logs/
+models/
+data/evaluations/
 
 # Local tooling
 .DS_Store

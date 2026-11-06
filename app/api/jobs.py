@@ -5,24 +5,20 @@ from typing import Annotated, Literal, Self, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, model_validator
-from sqlalchemy import and_, func, select, true
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.db.models import Job, JobSkill
-from app.ingestion.policies import LOCAL_ONLY_SOURCES, LOCAL_ONLY_URL_PATTERN, local_research_only
+from app.db.visibility import visible_jobs
+from app.ingestion.policies import local_research_only
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
 def permitted_jobs(request: Request) -> ColumnElement[bool]:
-    if request.app.state.app_env == "local":
-        return true()
-    return and_(
-        Job.source.not_in(LOCAL_ONLY_SOURCES),
-        ~Job.source_url.op("~*")(LOCAL_ONLY_URL_PATTERN),
-    )
+    return visible_jobs(request.app.state.app_env)
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:

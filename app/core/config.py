@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
@@ -17,6 +18,14 @@ class Settings(BaseSettings):
     deepseek_api_key: SecretStr | None = None
     deepseek_model: str | None = Field(default=None, min_length=1, max_length=100)
     deepseek_daily_call_limit: int = Field(default=0, ge=0, le=100)
+    embedding_model_dir: Path = Path("models/multilingual-minilm")
+    embedding_threads: int = Field(default=2, ge=1, le=8)
+    qdrant_collection_prefix: str = Field(default="career_jobs", pattern=r"^[a-z][a-z0-9_]{0,48}$")
+    vector_timeout_seconds: float = Field(default=30, ge=1, le=60)
+    search_corpus_limit: int = Field(default=5000, ge=10, le=10_000)
+    rrf_k: int = Field(default=60, ge=1, le=200)
+    rrf_bm25_weight: float = Field(default=0.5, gt=0, le=4)
+    rrf_dense_weight: float = Field(default=1, gt=0, le=4)
 
     @field_validator("database_url")
     @classmethod
