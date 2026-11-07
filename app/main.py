@@ -4,6 +4,10 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 
+from app.agents.analytics import AnalyticsExecutor
+from app.agents.planner import ModelPlanner
+from app.agents.workflow import CareerAgent
+from app.api.ask import router as ask_router
 from app.api.health import DependencyProbes, router
 from app.api.jobs import router as jobs_router
 from app.api.search import router as search_router
@@ -21,6 +25,7 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_engine(config)
+        analytics = AnalyticsExecutor(config)
         app.state.engine = engine
         try:
             async with httpx.AsyncClient(
@@ -41,8 +46,12 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
                         vector_client, namespace(config, encoder), encoder.dimension
                     )
                     app.state.search_service = SearchService(engine, config, encoder, store)
+                    app.state.career_agent = CareerAgent(
+                        app.state.search_service, analytics, ModelPlanner(config, engine)
+                    )
                     yield
         finally:
+            await analytics.close()
             await engine.dispose()
 
     application = FastAPI(title=config.app_name, version="0.1.0", lifespan=lifespan)
@@ -51,4 +60,5 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
     application.include_router(router)
     application.include_router(jobs_router)
     application.include_router(search_router)
+    application.include_router(ask_router)
     return application

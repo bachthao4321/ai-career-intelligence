@@ -3,7 +3,7 @@ name: ai-career-intelligence
 x-app: &app
   image: ai-career-intelligence:local
   build: .
-  environment:
+  environment: &app-env
     APP_NAME: ${APP_NAME:-AI Career Intelligence}
     APP_ENV: local
     DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-career}:${POSTGRES_PASSWORD:-career_local_only}@postgres:5432/${POSTGRES_DB:-career}
@@ -16,6 +16,8 @@ x-app: &app
     RRF_K: ${RRF_K:-60}
     RRF_BM25_WEIGHT: ${RRF_BM25_WEIGHT:-0.5}
     RRF_DENSE_WEIGHT: ${RRF_DENSE_WEIGHT:-1}
+    ANALYTICS_DATABASE_URL: postgresql+psycopg://career_analytics_local:${ANALYTICS_ROLE_PASSWORD:-career_analytics_local_only_2026}@postgres:5432/${POSTGRES_DB:-career}
+    ANALYTICS_TIMEOUT_MS: ${ANALYTICS_TIMEOUT_MS:-1500}
   volumes:
     - ./models:/models:ro
 
@@ -60,6 +62,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      analytics-role:
+        condition: service_completed_successfully
       qdrant:
         condition: service_started
     healthcheck:
@@ -68,6 +72,17 @@ services:
       timeout: 6s
       retries: 12
       start_period: 10s
+
+  analytics-role:
+    <<: *app
+    command: ["python", "-m", "app.agents.cli", "provision", "--scope", "local", "--role", "career_analytics_local"]
+    environment:
+      <<: *app-env
+      ANALYTICS_ROLE_PASSWORD: ${ANALYTICS_ROLE_PASSWORD:-career_analytics_local_only_2026}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
 
 volumes:
   postgres_data:

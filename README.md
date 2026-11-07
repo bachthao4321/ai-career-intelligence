@@ -6,7 +6,9 @@ Nền tảng hỗ trợ tìm việc IT bằng ngôn ngữ tự nhiên, phân tí
 
 M0 đã hoàn thành. M1 đã có importer idempotent, lịch sử nguồn, curated skill catalog, extraction kèm evidence, alias review, quota DeepSeek và API đọc jobs. Dataset local hiện có 145 tin Data/IT JobTech (CC0) và 10 tin ITviec dành riêng cho nghiên cứu cá nhân local. Xem [baseline M1](docs/M1_VALIDATION.md) và [nguồn Việt Nam](docs/VIETNAM_SOURCES.md).
 
-M2 đã có search BM25/dense/hybrid, embeddings ONNX đa ngôn ngữ chạy local, Qdrant indexing incremental/resumable và pilot 60 query. **BM25 là mặc định**: hybrid chưa vượt baseline trên phần test của pilot nhãn silver; xem [kết quả M2](docs/M2_VALIDATION.md). LangGraph analytics và CV matching chưa triển khai. DeepSeek adapter đã kiểm thử bằng mock, chưa gọi model trả phí để đánh giá chất lượng thực tế.
+M2 đã có search BM25/dense/hybrid, embeddings ONNX đa ngôn ngữ chạy local, Qdrant indexing incremental/resumable và pilot 60 query. **BM25 là mặc định**: hybrid chưa vượt baseline trên phần test của pilot nhãn silver; xem [kết quả M2](docs/M2_VALIDATION.md).
+
+M3 đã có `/ask`, router LangGraph, các mẫu thống kê offline, adapter chat tùy chọn, AST SQL allowlist và PostgreSQL login riêng chỉ đọc scoped views. Xem [hướng dẫn M3](docs/ANALYTICS.md) và [kiểm chứng M3](docs/M3_VALIDATION.md). CV matching chưa triển khai. Các adapter chat mới kiểm thử bằng mock; chưa gọi model thật để đánh giá chất lượng routing/text-to-SQL.
 
 Các con số trong mô tả dự án ban đầu (1.081 jobs, 323 tests, 12/12 routing, 5/5 SQL, P@5 0,34/0,88) là mốc tham chiếu cần kiểm chứng, không phải kết quả của repository này.
 
@@ -23,7 +25,7 @@ curl --fail http://localhost:8000/health
 curl --fail http://localhost:8000/ready
 ```
 
-API docs: <http://localhost:8000/docs>. Compose chạy migration trước API. API, PostgreSQL và Qdrant chỉ publish cổng trên localhost; dữ liệu lưu trong named volumes. Cấu hình này dành cho phát triển local.
+API docs: <http://localhost:8000/docs>. Compose chạy migration và provision role analytics riêng trước API. API, PostgreSQL và Qdrant chỉ publish cổng trên localhost; dữ liệu lưu trong named volumes. Cấu hình này dành cho phát triển local.
 
 `GET /health` trả 200 nếu API hoạt động. `GET /ready` kiểm tra PostgreSQL (`SELECT 1`) và Qdrant (`/readyz`) song song với timeout riêng; trả 200 khi cả hai sẵn sàng, hoặc 503 kèm trạng thái từng dependency. Endpoint này kiểm tra kết nối, không chứng minh dữ liệu/index đã đầy đủ.
 
@@ -122,7 +124,21 @@ Các collection local/public và model version tách biệt. ITviec chỉ đư�
 - CV matching: đọc PDF có text, trích xuất kỹ năng kèm bằng chứng và báo cáo khoảng trống kỹ năng.
 - Vận hành: FastAPI, PostgreSQL, Qdrant, Docker Compose, CI và demo có kiểm soát chi phí.
 
-Stack dự kiến: Python, FastAPI, Pydantic, SQLAlchemy/Alembic, LangChain, LangGraph, PostgreSQL, Qdrant và DeepSeek cho tác vụ sinh văn bản. Provider embeddings sẽ được chọn và kiểm tra riêng; không giả định API chat có hỗ trợ embeddings.
+Stack hiện tại: Python, FastAPI, Pydantic, SQLAlchemy/Alembic, LangGraph, SQLGlot, PostgreSQL, Qdrant và ONNX MiniLM local. LangChain Core là dependency của LangGraph; chat adapter dùng HTTP theo giao thức tương thích OpenAI, tách biệt embeddings.
+
+## M3: Hỏi dữ liệu tuyển dụng
+
+Sau khi chạy Compose mới, các câu phổ biến chạy được mà không có API key:
+
+```bash
+curl --fail --json '{"question":"Có bao nhiêu tin nhắc đến Python?"}' http://localhost:8000/ask
+curl --fail --json '{"question":"Top 10 skills"}' http://localhost:8000/ask
+curl --fail --json '{"question":"Tìm việc backend Python"}' http://localhost:8000/ask
+```
+
+Luồng LangGraph chọn search, analytics hoặc yêu cầu làm rõ. Mẫu offline dùng full match; câu có thêm điều kiện không bị cắt bỏ để khớp mẫu. Ngoài các mẫu này, adapter model mặc định tắt nên API yêu cầu làm rõ. Có thể bật model chat local/hosted qua cấu hình trong [ANALYTICS.md](docs/ANALYTICS.md); đây chưa phải chatbot đã được đánh giá trên câu hỏi tự do.
+
+SQL model sinh ra luôn được kiểm tra AST và viết lại tới view đúng scope trước khi chạy. Chỉ hỗ trợ SELECT phẳng, COUNT, group/filter/order và join khóa jobs–skills; tối đa 50 dòng, timeout mặc định 1,5 giây. Analytics dùng login riêng, không có quyền đọc bảng gốc hay ghi view. Kết quả trả bảng và SQL thực thi, không gửi dữ liệu hoặc kết quả SQL tới model để diễn giải. Số đếm mặc định là tin theo nguồn; `COUNT(DISTINCT content_hash)` dùng để đếm nhóm nội dung trùng.
 
 ## Tài liệu
 
@@ -133,5 +149,7 @@ Stack dự kiến: Python, FastAPI, Pydantic, SQLAlchemy/Alembic, LangChain, Lan
 - [ITviec: phạm vi dữ liệu và kiểm chứng](docs/VIETNAM_SOURCES.md)
 - [Retrieval/indexing và chạy pilot](docs/RETRIEVAL.md)
 - [Kết quả và giới hạn M2](docs/M2_VALIDATION.md)
+- [Router, SQL guard, role và model tùy chọn](docs/ANALYTICS.md)
+- [Kết quả kiểm chứng M3](docs/M3_VALIDATION.md)
 
 Chỉ thêm thành tích vào README/CV sau khi có dữ liệu, lệnh chạy và artifact chứng minh.
