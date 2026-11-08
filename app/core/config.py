@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     agent_model_name: str = Field(default="qwen3:8b", min_length=1, max_length=100)
     agent_model_api_key: SecretStr | None = None
     agent_daily_call_limit: int = Field(default=0, ge=0, le=100)
+    cv_ttl_seconds: int = Field(default=3600, ge=60, le=86400)
+    cv_capacity: int = Field(default=1000, ge=1, le=10000)
+    cv_cleanup_interval_seconds: int = Field(default=60, ge=5, le=300)
 
     @field_validator("agent_model_base_url")
     @classmethod

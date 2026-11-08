@@ -8,7 +8,9 @@ M0 đã hoàn thành. M1 đã có importer idempotent, lịch sử nguồn, cura
 
 M2 đã có search BM25/dense/hybrid, embeddings ONNX đa ngôn ngữ chạy local, Qdrant indexing incremental/resumable và pilot 60 query. **BM25 là mặc định**: hybrid chưa vượt baseline trên phần test của pilot nhãn silver; xem [kết quả M2](docs/M2_VALIDATION.md).
 
-M3 đã có `/ask`, router LangGraph, các mẫu thống kê offline, adapter chat tùy chọn, AST SQL allowlist và PostgreSQL login riêng chỉ đọc scoped views. Xem [hướng dẫn M3](docs/ANALYTICS.md) và [kiểm chứng M3](docs/M3_VALIDATION.md). CV matching chưa triển khai. Các adapter chat mới kiểm thử bằng mock; chưa gọi model thật để đánh giá chất lượng routing/text-to-SQL.
+M3 đã có `/ask`, router LangGraph, các mẫu thống kê offline, adapter chat tùy chọn, AST SQL allowlist và PostgreSQL login riêng chỉ đọc scoped views. Xem [hướng dẫn M3](docs/ANALYTICS.md) và [kiểm chứng M3](docs/M3_VALIDATION.md). Các adapter chat mới kiểm thử bằng mock; chưa gọi model thật để đánh giá chất lượng routing/text-to-SQL.
+
+M4 đã có CV PDF upload, trích kỹ năng có bằng chứng theo trang, BM25 + skill-coverage matching và báo cáo kỹ năng chưa thấy trong CV. Profile dùng token riêng, TTL mặc định 1 giờ và API xóa; PDF gốc không được lưu. Toàn bộ xử lý CV chạy local, không gọi LLM/embeddings hoặc gửi CV tới Qdrant. Xem [hướng dẫn CV](docs/CV_MATCHING.md) và [kiểm chứng M4](docs/M4_VALIDATION.md).
 
 Các con số trong mô tả dự án ban đầu (1.081 jobs, 323 tests, 12/12 routing, 5/5 SQL, P@5 0,34/0,88) là mốc tham chiếu cần kiểm chứng, không phải kết quả của repository này.
 
@@ -117,6 +119,25 @@ Hybrid fallback sang BM25 khi model/index/Qdrant chưa sẵn sàng và ghi rõ `
 
 Các collection local/public và model version tách biệt. ITviec chỉ được xử lý bằng model local và Qdrant endpoint local; search public loại nguồn này trước cả thống kê BM25 lẫn dense candidates. Xem [hướng dẫn retrieval](docs/RETRIEVAL.md) cho cấu hình, giới hạn và tái lập pilot.
 
+## M4: CV PDF và báo cáo matching
+
+Gửi PDF có text bằng raw body `application/pdf` (tối đa 2 MiB, 10 trang). API docs hỗ trợ chọn file tại `POST /cv`:
+
+```bash
+curl --fail http://localhost:8000/cv \
+  -H 'Content-Type: application/pdf' --data-binary @my-cv.pdf
+```
+
+Kết quả gồm `id`, `access_token`, `expires_at`, văn bản theo trang và các skill/evidence. Giữ token ở client; các lệnh sau yêu cầu header `Authorization: Bearer <access_token>`:
+
+- `GET /cv/{id}`: xem văn bản/kỹ năng đã trích.
+- `POST /cv/{id}/matches`: gửi `{"top_k":5,"target_role":"backend","filters":{"location":"Hồ Chí Minh"}}` để tìm và so sánh jobs. `target_role` và filters đều tùy chọn.
+- `DELETE /cv/{id}`: xóa profile trong database đang chạy.
+
+Match trả source URL, kỹ năng trùng kèm bằng chứng cả CV/job và `skills_not_seen_in_cv` kèm bằng chứng job. Cụm này nghĩa là chưa tìm thấy trong văn bản CV đã trích, không kết luận ứng viên không biết hoặc job bắt buộc kỹ năng đó. Score là heuristic chưa hiệu chỉnh, không phải xác suất được tuyển. PDF scan không có text/OCR, PDF mã hóa hoặc vượt giới hạn sẽ bị từ chối có mã lỗi.
+
+Profile hết hạn bị chặn đọc/match ngay; background sweep xóa các hàng hết hạn mỗi 60 giây khi API/DB hoạt động. Có thể chạy `uv run --frozen python -m app.cv.cli cleanup` để purge thủ công. Xóa/TTL áp dụng tới database hiện hành; bản sao lưu cần chính sách lưu giữ riêng.
+
 ## Phạm vi dự kiến
 
 - Tìm việc: BM25 + dense embeddings + Reciprocal Rank Fusion, sau đó LLM reranking có kiểm tra đầu ra.
@@ -151,5 +172,7 @@ SQL model sinh ra luôn được kiểm tra AST và viết lại tới view đú
 - [Kết quả và giới hạn M2](docs/M2_VALIDATION.md)
 - [Router, SQL guard, role và model tùy chọn](docs/ANALYTICS.md)
 - [Kết quả kiểm chứng M3](docs/M3_VALIDATION.md)
+- [CV upload, bằng chứng, matching và retention](docs/CV_MATCHING.md)
+- [Kết quả kiểm chứng M4](docs/M4_VALIDATION.md)
 
 Chỉ thêm thành tích vào README/CV sau khi có dữ liệu, lệnh chạy và artifact chứng minh.

@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.ingestion.contracts import json_hash
+from app.ingestion.contracts import EvidenceField, json_hash
 from app.ingestion.policies import local_research_only
 
 Slug = Annotated[str, Field(pattern=r"^[a-z0-9_-]+$", min_length=1, max_length=100)]
@@ -27,6 +27,14 @@ class SearchRequest(BaseModel):
     filters: SearchFilters = Field(default_factory=SearchFilters)
 
 
+class SourceSkillEvidence(BaseModel):
+    slug: str
+    source_field: EvidenceField
+    start: int
+    end: int
+    text: str
+
+
 @dataclass(frozen=True)
 class SearchDocument:
     job_id: uuid.UUID
@@ -41,6 +49,7 @@ class SearchDocument:
     text: str
     skills: tuple[str, ...]
     truncated: bool = False
+    skill_evidence: tuple[SourceSkillEvidence, ...] = ()
 
     @property
     def private(self) -> bool:

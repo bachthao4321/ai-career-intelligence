@@ -188,3 +188,12 @@ class IndexingRun(Base):
     result: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CVDocument(Base):
+    __tablename__ = "cv_documents"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64))
+    profile: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

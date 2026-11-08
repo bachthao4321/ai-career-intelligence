@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import cast
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
@@ -6,7 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from app.core.config import Settings
 from app.db.models import Job, JobSkill
 from app.db.visibility import visible_jobs
-from app.retrieval.contracts import SearchDocument, SearchFilters
+from app.ingestion.contracts import EvidenceField
+from app.ingestion.extraction import inside_link_or_email
+from app.retrieval.contracts import SearchDocument, SearchFilters, SourceSkillEvidence
 
 
 class CorpusTooLarge(RuntimeError):
@@ -52,8 +55,8 @@ async def load_documents(
         if not jobs:
             return []
         rows = (
-            await session.execute(
-                select(JobSkill.job_id, JobSkill.skill_slug)
+            await session.scalars(
+                select(JobSkill)
                 .join(Job, Job.id == JobSkill.job_id)
                 .where(
                     Job.id.in_([job.id for job in jobs]),
@@ -62,8 +65,32 @@ async def load_documents(
             )
         ).all()
         skills = defaultdict(list)
-        for job_id, skill_slug in rows:
-            skills[job_id].append(skill_slug)
+        evidence: dict[object, list[SourceSkillEvidence]] = defaultdict(list)
+        by_id = {job.id: job for job in jobs}
+        for row in rows:
+            skills[row.job_id].append(row.skill_slug)
+            job = by_id[row.job_id]
+            fields = {
+                "title": job.title,
+                "description": job.description,
+                "structured_skills": "\n".join(job.structured_skills),
+            }
+            value = fields.get(row.source_field, "")
+            if (
+                row.source_field in fields
+                and 0 <= row.start_offset < row.end_offset <= len(value)
+                and value[row.start_offset : row.end_offset] == row.evidence
+                and not inside_link_or_email(value, row.start_offset, row.end_offset)
+            ):
+                evidence[row.job_id].append(
+                    SourceSkillEvidence(
+                        slug=row.skill_slug,
+                        source_field=cast(EvidenceField, row.source_field),
+                        start=row.start_offset,
+                        end=row.end_offset,
+                        text=row.evidence,
+                    )
+                )
         documents = []
         for job in jobs:
             skill_slugs = tuple(sorted(skills[job.id]))
@@ -93,6 +120,7 @@ async def load_documents(
                     text=full_text[:20_000],
                     skills=skill_slugs,
                     truncated=len(full_text) > 20_000,
+                    skill_evidence=tuple(sorted(evidence[job.id], key=lambda item: item.slug)),
                 )
             )
         return documents
