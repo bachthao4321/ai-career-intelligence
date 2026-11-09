@@ -24,6 +24,7 @@ jobs:
       - run: uv run --frozen ruff format --check .
       - run: uv run --frozen mypy
       - run: uv run --frozen pytest -m 'not integration'
+      - run: node --test tests/ui/logic.test.mjs
 
   integration:
     runs-on: ubuntu-24.04

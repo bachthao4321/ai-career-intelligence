@@ -37,8 +37,28 @@ class Settings(BaseSettings):
     cv_ttl_seconds: int = Field(default=3600, ge=60, le=86400)
     cv_capacity: int = Field(default=1000, ge=1, le=10000)
     cv_cleanup_interval_seconds: int = Field(default=60, ge=5, le=300)
+    llm_global_daily_call_limit: int = Field(default=100, ge=0, le=10000)
+    llm_base_url: str = "http://localhost:11434/v1"
+    llm_model: str = Field(default="qwen3:8b", min_length=1, max_length=100)
+    llm_model_revision: str = Field(default="unverified", min_length=1, max_length=100)
+    llm_api_key: SecretStr | None = None
+    llm_daily_call_limit: int = Field(default=0, ge=0, le=1000)
+    llm_timeout_seconds: float = Field(default=15, ge=1, le=30)
+    llm_max_attempts: int = Field(default=2, ge=1, le=3)
+    llm_min_interval_seconds: float = Field(default=0.5, ge=0, le=10)
+    llm_concurrency: int = Field(default=2, ge=1, le=4)
+    llm_cache_ttl_seconds: int = Field(default=3600, ge=60, le=86400)
+    llm_cache_capacity: int = Field(default=1000, ge=1, le=10000)
+    rerank_enabled: bool = False
+    rerank_candidates: int = Field(default=10, ge=2, le=10)
+    rerank_timeout_seconds: float = Field(default=5, ge=0.1, le=15)
 
-    @field_validator("agent_model_base_url")
+    @field_validator("llm_api_key", mode="before")
+    @classmethod
+    def empty_model_key(cls, value: object) -> object:
+        return None if value == "" else value
+
+    @field_validator("agent_model_base_url", "llm_base_url")
     @classmethod
     def validate_model_origin(cls, value: str) -> str:
         from urllib.parse import urlsplit

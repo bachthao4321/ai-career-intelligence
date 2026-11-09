@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import cast
 
-from sqlalchemy import select, text
+from sqlalchemy import Select, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
@@ -16,13 +16,8 @@ class CorpusTooLarge(RuntimeError):
     pass
 
 
-async def load_documents(
-    engine: AsyncEngine,
-    settings: Settings,
-    filters: SearchFilters | None = None,
-) -> list[SearchDocument]:
-    filters = filters or SearchFilters()
-    statement = select(Job).where(visible_jobs(settings.app_env))
+def filtered_jobs(environment: str, filters: SearchFilters) -> Select[tuple[Job]]:
+    statement = select(Job).where(visible_jobs(environment))
     if filters.source:
         statement = statement.where(Job.source == filters.source)
     if filters.location:
@@ -39,6 +34,15 @@ async def load_documents(
             )
             .exists()
         )
+    return statement
+
+
+async def load_documents(
+    engine: AsyncEngine,
+    settings: Settings,
+    filters: SearchFilters | None = None,
+) -> list[SearchDocument]:
+    statement = filtered_jobs(settings.app_env, filters or SearchFilters())
     async with async_sessionmaker(engine)() as session:
         await session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
         jobs = (

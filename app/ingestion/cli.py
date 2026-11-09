@@ -13,11 +13,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.core.config import Settings
 from app.db.models import AliasCandidate
 from app.db.session import create_engine
+from app.ingestion.batching import BatchExtractor
 from app.ingestion.itviec import fetch_itviec
 from app.ingestion.llm import DeepSeekExtractor
 from app.ingestion.reporting import build_report
 from app.ingestion.service import import_records, review_alias
 from app.ingestion.sources import fetch_jobtech, fetch_remotive, load_records
+from app.llm.runtime import ModelRuntime
 
 
 def parser() -> argparse.ArgumentParser:
@@ -31,7 +33,7 @@ def parser() -> argparse.ArgumentParser:
     ingest = commands.add_parser("import")
     ingest.add_argument("path", type=Path)
     ingest.add_argument(
-        "--extractor", choices=["deterministic", "deepseek"], default="deterministic"
+        "--extractor", choices=["deterministic", "deepseek", "batch"], default="deterministic"
     )
     ingest.add_argument("--max-calls", type=int, default=0)
     ingest.add_argument("--retry-failed", action="store_true")
@@ -77,6 +79,11 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
                 records,
                 settings,
                 extractor=extractor,
+                batch_extractor=(
+                    BatchExtractor(ModelRuntime(engine, settings))
+                    if args.extractor == "batch"
+                    else None
+                ),
                 max_calls=args.max_calls,
                 retry_failed=args.retry_failed,
             )

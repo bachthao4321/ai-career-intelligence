@@ -1,3 +1,4 @@
+import time
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -17,6 +18,7 @@ from app.db.models import (
     Skill,
     SkillAlias,
 )
+from app.ingestion.batching import BatchExtractor, record_key
 from app.ingestion.contracts import JobRecord, SkillMention, alias_key, json_hash
 from app.ingestion.extraction import (
     EXTRACTION_VERSION,
@@ -26,6 +28,7 @@ from app.ingestion.extraction import (
 )
 from app.ingestion.llm import DeepSeekExtractor, ExtractionError, reserve_daily_call
 from app.ingestion.policies import local_research_only
+from app.llm.runtime import CallBudget
 
 
 @dataclass
@@ -40,6 +43,13 @@ class ImportReport:
     alias_candidates: int = 0
     rejected_mentions: int = 0
     llm_calls: int = 0
+    fast_path: int = 0
+    batch_splits: int = 0
+    decision_cache_hits: int = 0
+    reported_prompt_tokens: int = 0
+    reported_completion_tokens: int = 0
+    llm_attempts_without_usage: int = 0
+    elapsed_ms: int = 0
 
     def as_dict(self) -> dict[str, int]:
         return asdict(self)
@@ -90,16 +100,62 @@ async def import_records(
     settings: Settings,
     *,
     extractor: DeepSeekExtractor | None = None,
+    batch_extractor: BatchExtractor | None = None,
     max_calls: int = 0,
     retry_failed: bool = False,
 ) -> ImportReport:
+    started = time.perf_counter()
     if not 0 <= max_calls <= 100:
         raise ValueError("max_calls must be between 0 and 100")
+    if extractor and batch_extractor:
+        raise ValueError("Choose a single extraction backend")
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     report = ImportReport()
     async with sessions.begin() as session:
         catalog = await seed_catalog(session)
-    version = extractor.version if extractor else f"deterministic:{EXTRACTION_VERSION}"
+    version = (
+        batch_extractor.version
+        if batch_extractor
+        else extractor.version
+        if extractor
+        else f"deterministic:{EXTRACTION_VERSION}"
+    )
+    prepared = {}
+    if batch_extractor:
+        # Model requests finish before per-job write transactions/row locks are acquired.
+        async with sessions() as session:
+            existing = (
+                await session.execute(
+                    select(
+                        Job.source,
+                        Job.source_job_id,
+                        ExtractionRun.content_hash,
+                        ExtractionRun.status,
+                    )
+                    .join(ExtractionRun, ExtractionRun.job_id == Job.id)
+                    .where(
+                        ExtractionRun.extractor_version == version,
+                        ExtractionRun.catalog_version == catalog.version,
+                    )
+                )
+            ).all()
+        cached_inputs = {
+            (source, identity, content_hash)
+            for source, identity, content_hash, status in existing
+            if not (retry_failed and status == "fallback")
+        }
+        pending = [
+            record
+            for record in records
+            if (record.source, record.source_job_id, record.content_hash) not in cached_inputs
+        ]
+        batch = await batch_extractor.extract_many(pending, catalog, CallBudget(max_calls))
+        prepared = batch.results
+        report.llm_calls, report.batch_splits = batch.provider_calls, batch.splits
+        report.decision_cache_hits = batch.cache_hits
+        report.reported_prompt_tokens = batch.tokens.get("prompt_tokens", 0)
+        report.reported_completion_tokens = batch.tokens.get("completion_tokens", 0)
+        report.llm_attempts_without_usage = batch.attempts_without_usage
     for record in records:
         # One transaction per source identity: concurrent reruns wait on this row lock.
         async with sessions.begin() as session:
@@ -182,6 +238,11 @@ async def import_records(
             mentions = list(baseline)
             usage: dict[str, Any] = {}
             error: str | None = None
+            if batch_extractor:
+                result_item = prepared[record_key(record)]
+                mentions.extend(result_item.skills)
+                error = result_item.error
+                report.fast_path += int(result_item.fast_path)
             if extractor:
                 if local_research_only(record.source, str(record.source_url)):
                     error = "source_local_research_only"
@@ -189,7 +250,10 @@ async def import_records(
                     error = "import_call_limit"
                 elif record.input_characters > 30_000:
                     error = "input_too_long"
-                elif not await reserve_daily_call(engine, settings.deepseek_daily_call_limit):
+                elif not await reserve_daily_call(
+                    engine,
+                    min(settings.deepseek_daily_call_limit, settings.llm_global_daily_call_limit),
+                ):
                     error = "daily_call_limit"
                 else:
                     report.llm_calls += 1
@@ -198,10 +262,15 @@ async def import_records(
                         mentions.extend(output.skills)
                     except ExtractionError as exc:
                         error = str(exc)
+                    report.reported_prompt_tokens += usage.get("prompt_tokens", 0)
+                    report.reported_completion_tokens += usage.get("completion_tokens", 0)
+                    report.llm_attempts_without_usage += int(not usage)
             grounded = validate_mentions(record, mentions, catalog)
             baseline_skills = {mention.skill for mention in baseline}
             methods = {
-                mention.skill: "deterministic" if mention.skill in baseline_skills else "deepseek"
+                mention.skill: "deterministic"
+                if mention.skill in baseline_skills
+                else ("llm_batch" if batch_extractor else "deepseek")
                 for mention in grounded.accepted
             }
             result = {
@@ -266,6 +335,7 @@ async def import_records(
             report.accepted_skills += len(grounded.accepted)
             report.alias_candidates += len(grounded.alias_candidates)
             report.rejected_mentions += len(grounded.rejected)
+    report.elapsed_ms = round((time.perf_counter() - started) * 1000)
     return report
 
 

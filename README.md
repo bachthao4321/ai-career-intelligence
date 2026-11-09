@@ -12,9 +12,13 @@ M3 đã có `/ask`, router LangGraph, các mẫu thống kê offline, adapter ch
 
 M4 đã có CV PDF upload, trích kỹ năng có bằng chứng theo trang, BM25 + skill-coverage matching và báo cáo kỹ năng chưa thấy trong CV. Profile dùng token riêng, TTL mặc định 1 giờ và API xóa; PDF gốc không được lưu. Toàn bộ xử lý CV chạy local, không gọi LLM/embeddings hoặc gửi CV tới Qdrant. Xem [hướng dẫn CV](docs/CV_MATCHING.md) và [kiểm chứng M4](docs/M4_VALIDATION.md).
 
+M5 có bounded reranker tùy chọn, public-job batch extraction, retry/split, cache và quota lưu bền, cùng workflow pool review → chọn dev → frozen held-out test. Mặc định không gọi model. Chưa có nhãn relevance người duyệt hoặc đánh giá chat model thật; xem [hướng dẫn M5](docs/RELIABILITY.md) và [kiểm chứng M5](docs/M5_VALIDATION.md).
+
 Các con số trong mô tả dự án ban đầu (1.081 jobs, 323 tests, 12/12 routing, 5/5 SQL, P@5 0,34/0,88) là mốc tham chiếu cần kiểm chứng, không phải kết quả của repository này.
 
 ## Chạy local bằng Docker
+
+Giao diện **CareerLens** có tại <http://localhost:8000/> sau khi khởi động stack: khám phá việc làm, hỏi dữ liệu và đối chiếu CV. UI dùng API/dataset hiện có, không cần cài thêm frontend dependencies. Xem [hướng dẫn giao diện](docs/PLATFORM_UI.md).
 
 Yêu cầu: Docker Engine/Desktop đang chạy và Docker Compose v2 trở lên.
 
@@ -174,5 +178,7 @@ SQL model sinh ra luôn được kiểm tra AST và viết lại tới view đú
 - [Kết quả kiểm chứng M3](docs/M3_VALIDATION.md)
 - [CV upload, bằng chứng, matching và retention](docs/CV_MATCHING.md)
 - [Kết quả kiểm chứng M4](docs/M4_VALIDATION.md)
+- [Reranker, batching, retry/cache/quota và held-out evaluation](docs/RELIABILITY.md)
+- [Kết quả kiểm chứng và phần còn lại M5](docs/M5_VALIDATION.md)
 
 Chỉ thêm thành tích vào README/CV sau khi có dữ liệu, lệnh chạy và artifact chứng minh.

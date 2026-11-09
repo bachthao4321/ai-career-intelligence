@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager, suppress
 
 import httpx
 from fastapi import FastAPI, Request, Response
+from fastapi.staticfiles import StaticFiles
 
 from app.agents.analytics import AnalyticsExecutor
 from app.agents.planner import ModelPlanner
@@ -12,14 +13,19 @@ from app.api.ask import router as ask_router
 from app.api.cv import router as cv_router
 from app.api.health import DependencyProbes, router
 from app.api.jobs import router as jobs_router
+from app.api.platform import router as platform_router
 from app.api.search import router as search_router
 from app.core.config import Settings
 from app.cv.service import CVService
 from app.db.session import create_engine
+from app.llm.runtime import ModelRuntime
 from app.retrieval.embeddings import Embedder, LocalMiniLM
 from app.retrieval.indexing import namespace
 from app.retrieval.qdrant import QdrantStore
+from app.retrieval.reranking import Reranker
 from app.retrieval.service import SearchService
+from app.web.routes import STATIC
+from app.web.routes import router as web_router
 
 
 def create_app(settings: Settings | None = None, *, embedder: Embedder | None = None) -> FastAPI:
@@ -51,7 +57,13 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
                     store = QdrantStore(
                         vector_client, namespace(config, encoder), encoder.dimension
                     )
-                    app.state.search_service = SearchService(engine, config, encoder, store)
+                    app.state.search_service = SearchService(
+                        engine,
+                        config,
+                        encoder,
+                        store,
+                        reranker=Reranker(ModelRuntime(engine, config), config),
+                    )
                     app.state.career_agent = CareerAgent(
                         app.state.search_service, analytics, ModelPlanner(config, engine)
                     )
@@ -66,11 +78,15 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
     application = FastAPI(title=config.app_name, version="0.1.0", lifespan=lifespan)
     application.state.dependency_timeout_seconds = config.dependency_timeout_seconds
     application.state.app_env = config.app_env
+    application.state.settings = config
     application.include_router(router)
     application.include_router(jobs_router)
     application.include_router(search_router)
     application.include_router(ask_router)
     application.include_router(cv_router)
+    application.include_router(platform_router)
+    application.include_router(web_router)
+    application.mount("/assets", StaticFiles(directory=STATIC), name="platform-assets")
 
     @application.middleware("http")
     async def private_cv_responses(

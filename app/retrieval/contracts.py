@@ -25,6 +25,7 @@ class SearchRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=20)
     candidate_k: int = Field(default=50, ge=20, le=100)
     filters: SearchFilters = Field(default_factory=SearchFilters)
+    rerank: bool = False
 
 
 class SourceSkillEvidence(BaseModel):
@@ -94,6 +95,16 @@ class SearchHit(BaseModel):
     bm25_score: float | None
     dense_score: float | None
     excerpt: str
+    rerank_score: float | None = None
+
+
+class RerankInfo(BaseModel):
+    status: Literal["not_requested", "disabled", "applied", "fallback"] = "not_requested"
+    reason: str | None = None
+    candidates: int = 0
+    cache_hit: bool = False
+    model: str | None = None
+    attempts: int = 0
 
 
 class SearchResponse(BaseModel):
@@ -109,3 +120,4 @@ class SearchResponse(BaseModel):
     model_signature: str | None = None
     rrf_k: int = 60
     rrf_weights: tuple[float, float] = (0.5, 1.0)
+    rerank: RerankInfo = Field(default_factory=RerankInfo)

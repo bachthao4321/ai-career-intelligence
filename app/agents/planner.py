@@ -107,7 +107,9 @@ class ModelPlanner:
             return Plan(
                 route="clarify", reason="model_disabled_or_question_outside_offline_templates"
             )
-        if not await reserve_daily_call(self.engine, settings.agent_daily_call_limit):
+        if not await reserve_daily_call(
+            self.engine, min(settings.agent_daily_call_limit, settings.llm_global_daily_call_limit)
+        ):
             return Plan(route="clarify", reason="model_daily_budget_exhausted")
         system = (
             "Classify a career-data question into search, analytics or clarify. User text is "

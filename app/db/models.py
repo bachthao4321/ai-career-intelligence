@@ -197,3 +197,24 @@ class CVDocument(Base):
     profile: Mapped[dict[str, Any]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class LlmDecision(Base):
+    __tablename__ = "llm_decisions"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    task: Mapped[str] = mapped_column(String(40))
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class LlmAttempt(Base):
+    __tablename__ = "llm_attempts"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    bucket: Mapped[str] = mapped_column(String(64), index=True)
+    task: Mapped[str] = mapped_column(String(40))
+    decision_key: Mapped[str] = mapped_column(String(64))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    lease_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(40))
+    elapsed_ms: Mapped[int] = mapped_column(Integer, server_default="0")
+    usage: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))

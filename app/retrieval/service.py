@@ -9,12 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.models import VectorIndexState
-from app.retrieval.contracts import RankedHit, SearchHit, SearchRequest, SearchResponse
+from app.llm.runtime import CallBudget
+from app.retrieval.contracts import RankedHit, RerankInfo, SearchHit, SearchRequest, SearchResponse
 from app.retrieval.documents import deduplicate, load_documents
 from app.retrieval.embeddings import Embedder, EmbeddingUnavailable, validate_vectors
 from app.retrieval.indexing import namespace, version_key
 from app.retrieval.lexical import bm25, reciprocal_rank_fusion, tokenize
 from app.retrieval.qdrant import QdrantStore, VectorBackendUnavailable
+from app.retrieval.reranking import Reranker
 
 
 class DenseSearchUnavailable(RuntimeError):
@@ -23,9 +25,16 @@ class DenseSearchUnavailable(RuntimeError):
 
 class SearchService:
     def __init__(
-        self, engine: AsyncEngine, settings: Settings, embedder: Embedder, store: QdrantStore
+        self,
+        engine: AsyncEngine,
+        settings: Settings,
+        embedder: Embedder,
+        store: QdrantStore,
+        *,
+        reranker: Reranker | None = None,
     ):
         self.engine, self.settings, self.embedder, self.store = engine, settings, embedder, store
+        self.reranker = reranker
         if (
             store.collection != namespace(settings, embedder)
             or store.dimension != embedder.dimension
@@ -38,6 +47,7 @@ class SearchService:
         *,
         rrf_k: int | None = None,
         rrf_weights: tuple[float, float] | None = None,
+        call_budget: CallBudget | None = None,
     ) -> SearchResponse:
         rrf_k = rrf_k if rrf_k is not None else self.settings.rrf_k
         rrf_weights = rrf_weights or (self.settings.rrf_bm25_weight, self.settings.rrf_dense_weight)
@@ -135,6 +145,22 @@ class SearchService:
             )
         else:
             ranking = dense if request.mode == "dense" else lexical
+        rerank_info = RerankInfo()
+        rerank_scores: dict[str, float] = {}
+        if request.rerank:
+            if self.reranker is None:
+                rerank_info = RerankInfo(status="disabled", reason="reranker_not_configured")
+            else:
+                reranked = await self.reranker.rerank(
+                    request.query,
+                    ranking,
+                    documents,
+                    request.filters.model_dump(mode="json"),
+                    budget=call_budget,
+                )
+                ranking, rerank_info, rerank_scores = reranked.hits, reranked.info, reranked.scores
+            if rerank_info.status != "applied":
+                warnings.append("rerank_fallback_" + (rerank_info.reason or "unavailable"))
         lexical_scores = {hit.job_id: hit.score for hit in lexical}
         dense_hits = {hit.job_id: hit for hit in dense}
         items = []
@@ -173,6 +199,7 @@ class SearchService:
                     bm25_score=lexical_scores.get(doc.job_id),
                     dense_score=dense_hits[doc.job_id].score if doc.job_id in dense_hits else None,
                     excerpt=doc.text[start:end],
+                    rerank_score=rerank_scores.get(str(doc.job_id)),
                 )
             )
         return SearchResponse(
@@ -188,4 +215,5 @@ class SearchService:
             model_signature=self.embedder.signature if request.mode != "bm25" else None,
             rrf_k=rrf_k,
             rrf_weights=rrf_weights,
+            rerank=rerank_info,
         )
