@@ -228,7 +228,10 @@ def backup(stack: Compose, output: Path) -> dict:
             path.chmod(0o600)
     finally:
         if "api" in running:
-            stack.run("start", "--wait", "--wait-timeout", "60", "api")
+            # Wait only for the API, not the already-completed one-shot dependencies.
+            stack.run(
+                "up", "--no-deps", "--no-recreate", "-d", "--wait", "--wait-timeout", "60", "api"
+            )
     return {
         "backup": str(destination.relative_to(ROOT)),
         "collections": len(vectors),

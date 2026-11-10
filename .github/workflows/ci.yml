@@ -41,7 +41,9 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen --python 3.12
       - name: Build, migrate and start the complete stack
-        run: docker compose up --build --wait --wait-timeout 120
+        run: |
+          docker compose version
+          docker compose up --build --wait --wait-timeout 120
       - name: Check running container endpoints and schema
         run: |
           curl --fail http://localhost:8000/health

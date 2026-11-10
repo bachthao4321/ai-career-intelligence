@@ -162,7 +162,7 @@ with psycopg.connect(url.render_as_string(hide_password=False)) as c:
             assert client.get(path, headers=bearer).status_code == 404
             run("restart", "api")
             # Wait for API health after restart; signed cookie and DB counters survive.
-            run("start", "--wait", "--wait-timeout", "60", "api")
+            run("up", "--no-deps", "--no-recreate", "-d", "--wait", "--wait-timeout", "60", "api")
             assert client.get("/platform/overview").json()["listings"] == len(records)
 
             def spoofed_request(number: int) -> int:
