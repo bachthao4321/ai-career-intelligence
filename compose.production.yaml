@@ -1,0 +1,122 @@
+# Standalone file: never layer the development ports/default passwords into production.
+name: ai-career-production
+x-app: &app
+  image: ai-career-intelligence:production
+  build: .
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  environment: &env
+    APP_ENV: production
+    DATABASE_URL: postgresql+psycopg://career:${POSTGRES_PASSWORD:?Set a random hex POSTGRES_PASSWORD}@postgres:5432/career
+    QDRANT_URL: http://qdrant:6333
+    ANALYTICS_DATABASE_URL: postgresql+psycopg://career_analytics_public:${ANALYTICS_ROLE_PASSWORD:?Set a random hex ANALYTICS_ROLE_PASSWORD}@postgres:5432/career
+    ANALYTICS_ROLE_PASSWORD: ${ANALYTICS_ROLE_PASSWORD:?Required}
+    DEMO_AUTH_ENABLED: "true"
+    CLIENT_LIMITS_ENABLED: "true"
+    DEMO_USERNAME: ${DEMO_USERNAME:-viewer}
+    DEMO_PASSWORD: ${DEMO_PASSWORD:?Set DEMO_PASSWORD}
+    DEMO_COOKIE_SECRET: ${DEMO_COOKIE_SECRET:?Set DEMO_COOKIE_SECRET}
+    ADMIN_KEY: ${ADMIN_KEY:?Set ADMIN_KEY}
+    PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN to the HTTPS origin}
+    TRUSTED_PROXY_IP: ${PROXY_IP:-172.30.88.2}
+    CLIENT_REQUESTS_PER_MINUTE: ${CLIENT_REQUESTS_PER_MINUTE:-60}
+    CLIENT_LLM_ROUTES_PER_DAY: ${CLIENT_LLM_ROUTES_PER_DAY:-10}
+    CV_CAPACITY: "100"
+    EMBEDDING_MODEL_DIR: /models/multilingual-minilm
+    LLM_GLOBAL_DAILY_CALL_LIMIT: ${LLM_GLOBAL_DAILY_CALL_LIMIT:-0}
+    LLM_DAILY_CALL_LIMIT: "0"
+    AGENT_DAILY_CALL_LIMIT: "0"
+    AGENT_MODEL_ENABLED: "false"
+    RERANK_ENABLED: "false"
+  volumes: ["./models:/models:ro"]
+  networks: [backend]
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: career
+      POSTGRES_USER: career
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    networks: [backend]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U career -d career"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    restart: unless-stopped
+    volumes: ["qdrant_data:/qdrant/storage"]
+    networks: [backend]
+  migrate:
+    <<: *app
+    command: [alembic, upgrade, head]
+    restart: "no"
+    depends_on:
+      postgres: {condition: service_healthy}
+  analytics-role:
+    <<: *app
+    command: [python, -m, app.agents.cli, provision, --scope, public, --role, career_analytics_public]
+    restart: "no"
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  api:
+    <<: *app
+    environment:
+      <<: *env
+      DATABASE_URL: postgresql+psycopg://career_app:${APP_ROLE_PASSWORD:?Set a separate random hex APP_ROLE_PASSWORD}@postgres:5432/career
+    command: [uvicorn, "app.main:create_app", --factory, --host, "0.0.0.0", --port, "8000", --no-proxy-headers, --no-access-log, --limit-concurrency, "32", --timeout-keep-alive, "5"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      analytics-role: {condition: service_completed_successfully}
+      app-role: {condition: service_completed_successfully}
+      qdrant: {condition: service_started}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready',timeout=5)"]
+      interval: 5s
+      timeout: 6s
+      retries: 12
+  app-role:
+    <<: *app
+    command: [python, -m, app.db.provision]
+    restart: "no"
+    environment:
+      <<: *env
+      APP_ROLE_PASSWORD: ${APP_ROLE_PASSWORD:?Required}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  proxy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:?Required}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      backend:
+        ipv4_address: ${PROXY_IP:-172.30.88.2}
+    depends_on:
+      api: {condition: service_healthy}
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: ${BACKEND_SUBNET:-172.30.88.0/24}
+          # Keep dynamic allocations away from the proxy's fixed, trusted address.
+          ip_range: ${BACKEND_DYNAMIC_RANGE:-172.30.88.128/25}
+volumes:
+  postgres_data:
+  qdrant_data:
+  caddy_data:
+  caddy_config:

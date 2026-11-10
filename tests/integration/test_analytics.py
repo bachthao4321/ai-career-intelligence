@@ -63,7 +63,7 @@ async def analytics(
                     "database_url": SecretStr(admin_url),
                     "analytics_database_url": SecretStr(dsn),
                     "analytics_schema": schema,
-                    "app_env": "local" if scope == "local" else "production",
+                    "app_env": "local" if scope == "local" else "test",
                     "analytics_timeout_ms": 100,
                 }
             )

@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.retrieval.contracts import SearchRequest, SearchResponse
 from app.retrieval.documents import CorpusTooLarge
 from app.retrieval.service import DenseSearchUnavailable, SearchService
+from app.security.demo import paid_client_gate
 
 router = APIRouter(tags=["Search"])
 
@@ -16,8 +17,16 @@ def get_search_service(request: Request) -> SearchService:
 
 @router.post("/search", response_model=SearchResponse)
 async def search_jobs(
-    body: SearchRequest, service: Annotated[SearchService, Depends(get_search_service)]
+    body: SearchRequest,
+    request: Request,
+    service: Annotated[SearchService, Depends(get_search_service)],
 ) -> SearchResponse:
+    await paid_client_gate(
+        request,
+        body.rerank
+        and service.settings.rerank_enabled
+        and service.settings.llm_daily_call_limit > 0,
+    )
     try:
         return await service.search(body)
     except CorpusTooLarge as exc:

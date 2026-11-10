@@ -1,0 +1,32 @@
+{
+    admin off
+    servers {
+        timeouts {
+            read_header 10s
+            read_body 15s
+            idle 60s
+        }
+    }
+}
+
+{$PUBLIC_DOMAIN} {
+    request_body {
+        max_size 2097152
+    }
+    header {
+        -Server
+        Strict-Transport-Security "max-age=31536000"
+        Referrer-Policy "no-referrer"
+        X-Content-Type-Options "nosniff"
+    }
+    reverse_proxy api:8000 {
+        # Replace client-supplied forwarding headers; Uvicorn leaves socket peer intact.
+        header_up X-Forwarded-For {remote_host}
+        header_up -X-Real-IP
+        header_up -Forwarded
+        transport http {
+            dial_timeout 3s
+            response_header_timeout 70s
+        }
+    }
+}

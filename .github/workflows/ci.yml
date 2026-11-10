@@ -57,6 +57,10 @@ jobs:
           curl --fail --json '{"question":"How many jobs?"}' http://localhost:8000/ask > /tmp/ask.json
           python -c 'import json; d=json.load(open("/tmp/ask.json")); assert d["route"] == "analytics" and d["status"] == "ok" and d["analytics"]["rows"][0]["listing_count"] > 0, d'
           uv run --frozen python -m scripts.smoke_cv
+      - name: PostgreSQL and Qdrant backup/restore drill on synthetic data
+        run: APP_ENV=test M6_BACKUP_FIXTURE=1 uv run --frozen python -m scripts.smoke_backup
+      - name: Production stack HTTPS/auth/CV/restart smoke on loopback only
+        run: uv run --frozen python -m scripts.smoke_production
       - name: Capture service logs on failure
         if: failure()
         run: docker compose logs --no-color

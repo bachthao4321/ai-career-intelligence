@@ -14,6 +14,7 @@ from app.ingestion.contracts import JobRecord
 from app.ingestion.llm import DeepSeekExtractor
 from app.ingestion.service import import_records
 from app.main import create_app
+from tests.test_demo_security import basic, secured
 
 pytestmark = [
     pytest.mark.integration,
@@ -80,7 +81,15 @@ async def test_production_hides_restricted_sources_in_list_counts_and_details(
             config = settings.model_copy(
                 update={"database_url": SecretStr(url), "app_env": environment}
             )
-            with TestClient(create_app(config)) as client:
+            if environment == "production":
+                config = secured(
+                    config, client_limits_enabled=True, public_origin="https://testserver"
+                )
+            with TestClient(
+                create_app(config),
+                base_url="https://testserver",
+                headers=basic() if environment == "production" else {},
+            ) as client:
                 page = client.get("/jobs")
                 assert page.status_code == 200, page.text
                 assert page.json()["total"] == total

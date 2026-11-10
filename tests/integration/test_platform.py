@@ -10,6 +10,7 @@ from app.core.config import Settings
 from app.ingestion.contracts import JobRecord
 from app.ingestion.service import import_records
 from app.main import create_app
+from tests.test_demo_security import basic, secured
 
 pytestmark = [
     pytest.mark.integration,
@@ -35,7 +36,14 @@ async def test_platform_scoped_overview_feed_filters_and_dedup(
     await import_records(engine, [first, duplicate, private, renamed], config)
 
     def exercise(environment: str, expected: int) -> None:
-        with TestClient(create_app(config.model_copy(update={"app_env": environment}))) as client:
+        scoped = config.model_copy(update={"app_env": environment})
+        if environment == "production":
+            scoped = secured(scoped, client_limits_enabled=True, public_origin="https://testserver")
+        with TestClient(
+            create_app(scoped),
+            base_url="https://testserver",
+            headers=basic() if environment == "production" else {},
+        ) as client:
             response = client.get("/platform/overview")
             assert response.status_code == 200, response.text
             overview = response.json()

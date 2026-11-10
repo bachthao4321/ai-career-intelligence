@@ -39,7 +39,7 @@ async def cv(
     isolated_database: tuple[AsyncEngine, str], settings: Settings, record: JobRecord
 ) -> AsyncIterator[Harness]:
     engine, url = isolated_database
-    config = settings.model_copy(update={"database_url": SecretStr(url), "app_env": "production"})
+    config = settings.model_copy(update={"database_url": SecretStr(url), "app_env": "test"})
     public = record.model_copy(
         update={
             "source": "jobtech",

@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.agents.workflow import AskRequest, AskResponse, CareerAgent
 from app.retrieval.documents import CorpusTooLarge
 from app.retrieval.service import DenseSearchUnavailable
+from app.security.demo import paid_client_gate
 
 router = APIRouter(tags=["Career agent"])
 
@@ -13,6 +14,10 @@ router = APIRouter(tags=["Career agent"])
 @router.post("/ask", response_model=AskResponse)
 async def ask(body: AskRequest, request: Request) -> AskResponse:
     agent = cast(CareerAgent, request.app.state.career_agent)
+    config = request.app.state.settings
+    await paid_client_gate(
+        request, config.agent_model_enabled and config.agent_daily_call_limit > 0
+    )
     try:
         return await agent.ask(body)
     except CorpusTooLarge as exc:

@@ -55,9 +55,10 @@ async def index_documents(
     report = IndexReport()
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     run_id = uuid.uuid4()
-    async with engine.connect() as lock:
-        acquired = await lock.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": lock_key})
-        await lock.commit()
+    async with engine.begin() as lock:
+        acquired = await lock.scalar(
+            text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": lock_key}
+        )
         if not acquired:
             raise IndexAlreadyRunning("Another indexer owns this model/scope namespace")
         try:
@@ -203,6 +204,3 @@ async def index_documents(
                     )
                 )
             raise
-        finally:
-            await lock.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": lock_key})
-            await lock.commit()

@@ -1,13 +1,15 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", hide_input_in_errors=True
+    )
 
     app_name: str = "AI Career Intelligence"
     app_env: Literal["local", "test", "production"] = "local"
@@ -52,6 +54,74 @@ class Settings(BaseSettings):
     rerank_enabled: bool = False
     rerank_candidates: int = Field(default=10, ge=2, le=10)
     rerank_timeout_seconds: float = Field(default=5, ge=0.1, le=15)
+    demo_auth_enabled: bool = False
+    demo_username: str = Field(default="viewer", min_length=1, max_length=80)
+    demo_password: SecretStr | None = None
+    demo_cookie_secret: SecretStr | None = None
+    admin_key: SecretStr | None = None
+    public_origin: str | None = None
+    demo_session_seconds: int = Field(default=7200, ge=60, le=86400)
+    client_limits_enabled: bool = False
+    client_requests_per_minute: int = Field(default=60, ge=1, le=600)
+    client_llm_routes_per_day: int = Field(default=10, ge=0, le=100)
+    trusted_proxy_ip: str | None = None
+
+    @model_validator(mode="after")
+    def production_controls(self) -> "Settings":
+        from ipaddress import ip_address
+        from urllib.parse import urlsplit
+
+        if self.trusted_proxy_ip:
+            ip_address(self.trusted_proxy_ip)
+        if self.public_origin:
+            parsed = urlsplit(self.public_origin)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.path not in {"", "/"}
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("PUBLIC_ORIGIN must be an HTTPS origin")
+            self.public_origin = self.public_origin.rstrip("/")
+        if self.app_env == "production" and (
+            not self.demo_auth_enabled or not self.client_limits_enabled or not self.public_origin
+        ):
+            raise ValueError(
+                "Production requires demo authentication, client limits and PUBLIC_ORIGIN"
+            )
+        if self.demo_auth_enabled or self.client_limits_enabled:
+            if not self.demo_cookie_secret or len(self.demo_cookie_secret.get_secret_value()) < 32:
+                raise ValueError(
+                    "Demo/client controls require a cookie secret of at least 32 characters"
+                )
+        if self.demo_auth_enabled:
+            if not self.demo_password or len(self.demo_password.get_secret_value()) < 16:
+                raise ValueError("Demo password must contain at least 16 characters")
+        if self.app_env == "production" and (
+            not self.admin_key or len(self.admin_key.get_secret_value()) < 32
+        ):
+            raise ValueError("Production requires an admin key of at least 32 characters")
+        if self.admin_key and len(self.admin_key.get_secret_value()) < 32:
+            raise ValueError("Admin key must contain at least 32 characters")
+        secrets = [
+            value.get_secret_value()
+            for value in (self.demo_password, self.demo_cookie_secret, self.admin_key)
+            if value
+        ]
+        if len(set(secrets)) != len(secrets):
+            raise ValueError("Demo password, cookie secret and admin key must be different")
+        if self.app_env == "production":
+            if any(value.startswith("replace_") for value in secrets):
+                raise ValueError("Replace production secret placeholders")
+            for value in (self.database_url, self.analytics_database_url):
+                if value and (make_url(value.get_secret_value()).password or "").startswith(
+                    "replace_"
+                ):
+                    raise ValueError("Replace production database password placeholders")
+        return self
 
     @field_validator("llm_api_key", mode="before")
     @classmethod

@@ -14,6 +14,8 @@ M4 đã có CV PDF upload, trích kỹ năng có bằng chứng theo trang, BM25
 
 M5 có bounded reranker tùy chọn, public-job batch extraction, retry/split, cache và quota lưu bền, cùng workflow pool review → chọn dev → frozen held-out test. Mặc định không gọi model. Chưa có nhãn relevance người duyệt hoặc đánh giá chat model thật; xem [hướng dẫn M5](docs/RELIABILITY.md) và [kiểm chứng M5](docs/M5_VALIDATION.md).
 
+M6 có password gate, signed demo cookie tách CV bearer, admin-key writes, client quotas lưu DB, production Compose/Caddy và backup/restore drill PostgreSQL/Qdrant. Đã kiểm thử HTTPS trên localhost và phục hồi dữ liệu thật sang volumes riêng; chưa deploy public do chưa có domain/VPS. Xem [runbook M6](docs/OPERATIONS.md) và [kết quả local](docs/M6_VALIDATION.md).
+
 Các con số trong mô tả dự án ban đầu (1.081 jobs, 323 tests, 12/12 routing, 5/5 SQL, P@5 0,34/0,88) là mốc tham chiếu cần kiểm chứng, không phải kết quả của repository này.
 
 ## Chạy local bằng Docker
@@ -180,5 +182,7 @@ SQL model sinh ra luôn được kiểm tra AST và viết lại tới view đú
 - [Kết quả kiểm chứng M4](docs/M4_VALIDATION.md)
 - [Reranker, batching, retry/cache/quota và held-out evaluation](docs/RELIABILITY.md)
 - [Kết quả kiểm chứng và phần còn lại M5](docs/M5_VALIDATION.md)
+- [Xác thực, production deployment và backup/restore](docs/OPERATIONS.md)
+- [Kết quả kiểm chứng local M6](docs/M6_VALIDATION.md)
 
 Chỉ thêm thành tích vào README/CV sau khi có dữ liệu, lệnh chạy và artifact chứng minh.

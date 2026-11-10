@@ -4,11 +4,14 @@ from contextlib import asynccontextmanager, suppress
 
 import httpx
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.agents.analytics import AnalyticsExecutor
 from app.agents.planner import ModelPlanner
 from app.agents.workflow import CareerAgent
+from app.api.admin import router as admin_router
 from app.api.ask import router as ask_router
 from app.api.cv import router as cv_router
 from app.api.health import DependencyProbes, router
@@ -24,12 +27,22 @@ from app.retrieval.indexing import namespace
 from app.retrieval.qdrant import QdrantStore
 from app.retrieval.reranking import Reranker
 from app.retrieval.service import SearchService
+from app.security.demo import (
+    client_hash,
+    cookie_name,
+    host_allowed,
+    issue_session,
+    reserve_client,
+    same_origin,
+    valid_basic,
+    valid_session,
+)
 from app.web.routes import STATIC
 from app.web.routes import router as web_router
 
 
 def create_app(settings: Settings | None = None, *, embedder: Embedder | None = None) -> FastAPI:
-    config = settings if settings is not None else Settings()
+    config = Settings.model_validate(settings.model_dump()) if settings is not None else Settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -83,6 +96,7 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
     application.include_router(jobs_router)
     application.include_router(search_router)
     application.include_router(ask_router)
+    application.include_router(admin_router)
     application.include_router(cv_router)
     application.include_router(platform_router)
     application.include_router(web_router)
@@ -92,7 +106,59 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
     async def private_cv_responses(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        response = await call_next(request)
+        def rejected(code: int, detail: str, headers: dict[str, str] | None = None) -> Response:
+            return JSONResponse(
+                {"detail": detail},
+                status_code=code,
+                headers={"Cache-Control": "no-store", **(headers or {})},
+            )
+
+        if not host_allowed(request, config):
+            return rejected(400, "Unrecognized host")
+        probe = request.url.path in {"/health", "/ready"} and request.method in {"GET", "HEAD"}
+        if not probe:
+            if config.client_limits_enabled:
+                try:
+                    granted = await reserve_client(
+                        engine=request.app.state.engine,
+                        identity=client_hash(request, config),
+                        category="minute",
+                        limit=config.client_requests_per_minute,
+                    )
+                except SQLAlchemyError:
+                    return rejected(503, "Client quota storage unavailable")
+                if not granted:
+                    return rejected(429, "Request rate limit reached", {"Retry-After": "60"})
+            login = False
+            if config.demo_auth_enabled:
+                authenticated = valid_session(config, request.cookies.get(cookie_name(config), ""))
+                login = valid_basic(config, request.headers.get("authorization", ""))
+                if not authenticated and not login:
+                    return rejected(
+                        401,
+                        "Demo login required",
+                        {"WWW-Authenticate": 'Basic realm="CareerLens", charset="UTF-8"'},
+                    )
+                if request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(
+                    request, config
+                ):
+                    return rejected(403, "Same-origin request required")
+            response = await call_next(request)
+            if config.demo_auth_enabled and login:
+                response.set_cookie(
+                    cookie_name(config),
+                    issue_session(config),
+                    max_age=config.demo_session_seconds,
+                    httponly=True,
+                    secure=config.app_env == "production",
+                    samesite="strict",
+                    path="/",
+                )
+            if config.demo_auth_enabled:
+                response.headers["Cache-Control"] = "no-store"
+        else:
+            response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
         if request.url.path == "/cv" or request.url.path.startswith("/cv/"):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Referrer-Policy"] = "no-referrer"
