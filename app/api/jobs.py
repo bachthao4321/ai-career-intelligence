@@ -20,6 +20,7 @@ from app.ingestion.description_translation import (
 )
 from app.ingestion.policies import local_research_only
 from app.ingestion.presentation import JobPresentation, presentations
+from app.ingestion.reviewed_titles import REVIEWED_TITLES
 from app.security.demo import paid_client_gate
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
@@ -160,6 +161,8 @@ class DescriptionRequest(BaseModel):
 
 
 class DescriptionResponse(BaseModel):
+    title: str
+    title_source: Literal["reviewed", "machine"]
     text: str
     target: Target
 
@@ -177,9 +180,20 @@ async def translate_description(
     await paid_client_gate(request, request.app.state.settings.agent_model_enabled)
     translator = cast(DescriptionTranslator, request.app.state.description_translator)
     try:
+        reviewed = REVIEWED_TITLES.get(job.title)
+        if reviewed:
+            translated_title = reviewed[0 if body.target == "en" else 1]
+            title_source: Literal["reviewed", "machine"] = "reviewed"
+        else:
+            translated_title = await translator.translate(
+                job.title, body.target, job.source, job.source_url
+            )
+            title_source = "machine"
         translated = await translator.translate(
             job.description, body.target, job.source, job.source_url
         )
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    return DescriptionResponse(text=translated, target=body.target)
+    return DescriptionResponse(
+        title=translated_title, title_source=title_source, text=translated, target=body.target
+    )

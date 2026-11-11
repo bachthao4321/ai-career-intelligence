@@ -84,3 +84,26 @@ def test_reviewed_it_titles_preserve_role_terms_and_technology() -> None:
     assert "giao diện trước" not in vi.lower()
     assert REVIEWED_TITLES["Scrum Master"][1] == "Scrum Master"
     assert "kiến trúc sư" in REVIEWED_TITLES["Senior Software Architect"][1].lower()
+
+
+@pytest.mark.parametrize(
+    "source,raw,expected",
+    [
+        ("jobtech", {"application_deadline": "2026-12-06T23:59:59"}, "2026-12-06"),
+        ("jobtech", {"application_deadline": "2026-12-06T23:59:59Z"}, "2026-12-06"),
+        ("itviec", {"posting": {"validThrough": "2026-12-10"}}, "2026-12-10"),
+        ("topcv", {"posting": {"validThrough": "2026-11-30T23:59:59+07:00"}}, "2026-11-30"),
+        ("remotive", {"application_deadline": "2026-12-01"}, None),
+        ("jobtech", {"application_deadline": "2026-02-30"}, None),
+        ("jobtech", {"application_deadline": "2026-12-06garbage"}, None),
+        ("itviec", {"posting": []}, None),
+        ("jobtech", {}, None),
+    ],
+)
+def test_application_deadline_uses_explicit_trusted_source_date(
+    source: str, raw: dict, expected: str | None
+) -> None:
+    from app.ingestion.presentation import application_deadline
+
+    value = application_deadline(source, raw)
+    assert (value.isoformat() if value else None) == expected

@@ -1,5 +1,6 @@
 """Read-only job presentation; country comes from provenance, never from an LLM."""
 
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -36,6 +37,7 @@ class JobPresentation(BaseModel):
     title_en: str | None = None
     title_vi: str | None = None
     translation_model: str | None = None
+    application_deadline: date | None = None
 
 
 def translation_signature(settings: Settings) -> str:
@@ -86,6 +88,25 @@ def country_metadata(source: str, raw: dict[str, Any]) -> tuple[list[str], str]:
     return codes, " · ".join(COUNTRIES[code][0] for code in codes) or "Chưa rõ quốc gia"
 
 
+def application_deadline(source: str, raw: dict[str, Any]) -> date | None:
+    """Return the source's calendar date without inventing a time zone."""
+    value: Any = None
+    if source == "jobtech":
+        value = raw.get("application_deadline")
+    elif source in {"itviec", "topcv"}:
+        posting = raw.get("posting")
+        if isinstance(posting, dict):
+            value = posting.get("validThrough")
+    if not isinstance(value, str) or not value or len(value) > 40:
+        return None
+    try:
+        if len(value) == 10:
+            return date.fromisoformat(value)
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
 async def presentations(
     session: AsyncSession, jobs: list[Job], settings: Settings
 ) -> dict[str, JobPresentation]:
@@ -103,5 +124,6 @@ async def presentations(
             title_en=translated[0] if translated else None,
             title_vi=translated[1] if translated else None,
             translation_model="human-reviewed" if translated else None,
+            application_deadline=application_deadline(job.source, job.raw_payload),
         )
     return result

@@ -1,4 +1,4 @@
-import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs';
+import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261111-6';
 
 const paths = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',
@@ -79,6 +79,14 @@ function applyTitleLanguage(node) {
 const flagAssets = new Set(['SE', 'VN', 'DK']);
 function showPresentation(node, job, value) {
   if (!node.isConnected || value.original_title !== job.title) return;
+  const deadline = titleBindings.get(node)?.deadline;
+  const countryTarget = titleBindings.get(node)?.countryTarget;
+  if (deadline) {
+    const valueText = value.application_deadline;
+    const formatted = valueText && /^\d{4}-\d{2}-\d{2}$/.test(valueText) ? `${valueText.slice(8, 10)}/${valueText.slice(5, 7)}/${valueText.slice(0, 4)}` : null;
+    deadline.replaceChildren(icon('clock'), formatted ? `Hạn nộp: ${formatted}` : 'Chưa thấy hạn nộp');
+    deadline.title = 'Hạn nộp theo dữ liệu đã thu thập; hãy kiểm tra lại tin gốc.';
+  }
   const country = el('div', { class: 'job-country' });
   if (value.country_codes?.length) {
     value.country_codes.forEach((code, index) => {
@@ -86,6 +94,10 @@ function showPresentation(node, job, value) {
       country.append(el('span', { text: value.country_names[index] || code }));
     });
   } else country.append(icon('globe'), el('span', { text: value.country_label }));
+  if (countryTarget) {
+    countryTarget.replaceChildren(...country.childNodes);
+    return;
+  }
   const title = titleBindings.get(node)?.title;
   const panel = el('div', { class: 'language-menu-panel' },
     el('p', { class: 'language-menu-label', text: 'Quốc gia' }), country);
@@ -100,7 +112,7 @@ function showPresentation(node, job, value) {
           node.querySelector('summary')?.focus();
         } }, label, icon('check')));
     panel.append(...buttons, el('p', { class: 'language-menu-note', text: 'Bản dịch tiêu đề đã được kiểm tra.' }));
-    titleBindings.set(node, { title, value, buttons });
+    titleBindings.set(node, { title, value, buttons, deadline });
   } else panel.append(el('p', { class: 'language-menu-note', text: 'Chưa có bản dịch tiêu đề được kiểm tra. Đang hiển thị tiêu đề gốc.' }));
   node.replaceChildren(el('summary', { 'aria-label': `Quốc gia và ngôn ngữ tiêu đề: ${job.title}` }, icon('globe'), el('span', { text: value.title_en && value.title_vi ? 'Ngôn ngữ tiêu đề' : 'Tiêu đề gốc' }), icon('chevron-down')), panel);
   if (value.title_en && value.title_vi && title) applyTitleLanguage(node);
@@ -121,13 +133,13 @@ async function flushPresentations() {
         nodes.forEach(([node, job]) => showPresentation(node, job, value));
       }
     } catch {
-      batch.forEach(([, nodes]) => nodes.forEach(([node]) => { if (node.isConnected) node.replaceChildren(el('summary', { text: 'Ngôn ngữ tiêu đề' }), el('p', { class: 'language-menu-panel language-menu-note', text: 'Chưa tải được thông tin quốc gia và bản dịch.' })); }));
+      batch.forEach(([, nodes]) => nodes.forEach(([node]) => { if (node.isConnected && titleBindings.get(node)?.deadline) titleBindings.get(node).deadline.textContent = 'Chưa tải được hạn nộp'; if (node.isConnected && titleBindings.get(node)?.countryTarget) titleBindings.get(node).countryTarget.textContent = 'Chưa tải được quốc gia'; if (node.isConnected) node.replaceChildren(el('summary', { text: 'Ngôn ngữ tiêu đề' }), el('p', { class: 'language-menu-panel language-menu-note', text: 'Chưa tải được thông tin quốc gia và bản dịch.' })); }));
     }
   }
 }
-export function jobPresentation(job, title = null) {
-  const node = el('details', { class: 'job-presentation language-menu' });
-  titleBindings.set(node, { title });
+export function jobPresentation(job, title = null, deadline = null, countryTarget = null) {
+  const node = countryTarget ? el('span', { class: 'job-presentation', hidden: true }) : el('details', { class: 'job-presentation language-menu' });
+  titleBindings.set(node, { title, deadline, countryTarget });
   const id = job.job_id || job.id;
   const cached = presentationCache.get(id);
   if (cached?.original_title === job.title) queueMicrotask(() => showPresentation(node, job, cached));
@@ -152,8 +164,9 @@ document.addEventListener('keydown', event => {
 });
 export function clearJobPresentationCache() { presentationCache.clear(); }
 export function jobHeading(job, openJob) {
+  const deadline = el('span', { class: 'job-deadline', text: 'Đang tải hạn nộp…' });
   const title = el('button', { class: 'job-title', type: 'button', onclick: () => openJob(job.job_id || job.id), text: job.title });
-  return el('div', { class: 'job-card-heading' }, avatar(job.company), el('div', { class: 'job-card-copy' }, el('h3', { class: 'job-title-heading' }, title), el('p', { class: 'company-name', text: job.company || 'Chưa có tên công ty' }), el('div', { class: 'job-meta' }, meta(job.location || 'Chưa có địa điểm', 'pin'), job.workplace_type && job.workplace_type !== 'unknown' ? meta(workplaceName(job.workplace_type), 'briefcase') : null), ), el('div', { class: 'job-card-tools' }, jobPresentation(job, title), sourceBadge(job)));
+  return el('div', { class: 'job-card-heading' }, avatar(job.company), el('div', { class: 'job-card-copy' }, el('h3', { class: 'job-title-heading' }, title), el('p', { class: 'company-name', text: job.company || 'Chưa có tên công ty' }), el('div', { class: 'job-meta' }, meta(job.location || 'Chưa có địa điểm', 'pin'), job.workplace_type && job.workplace_type !== 'unknown' ? meta(workplaceName(job.workplace_type), 'briefcase') : null, deadline), ), el('div', { class: 'job-card-tools' }, jobPresentation(job, title, deadline), sourceBadge(job)));
 }
 export function jobCard(job, context) {
   const footer = job.duplicate_listings > 1 ? `${number(job.duplicate_listings)} tin cùng nội dung` : job.fetched_at ? `Cập nhật ${date(job.fetched_at)}` : 'Kiểm tra thông tin trong tin gốc';

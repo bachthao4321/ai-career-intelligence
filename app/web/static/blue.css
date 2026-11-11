@@ -385,3 +385,58 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
   .dataset-strip { padding-block: 6px 10px; margin-bottom: 12px; }
   .search-workspace { gap: 12px; }
 }
+
+/* Center text consistently when skill badges share a row with the taller +N button. */
+.job-tags .tag { display: inline-flex; align-items: center; min-height: 32px; }
+
+/* Keep the source reminder beside the result list after removing the extra rail. */
+.results-area .source-disclaimer { display: flex; align-items: flex-start; gap: 8px; margin: 20px 0 0; padding: 0; }
+.results-area .source-disclaimer svg { width: 16px; height: 16px; flex: none; margin-top: 3px; }
+
+.job-deadline { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: .8125rem; line-height: 1.6; }
+.job-deadline svg { width: 14px; height: 14px; flex: none; }
+
+/* Keep translation controls together with the section they affect. */
+.description-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 24px 0 12px; }
+.description-header .detail-section-label { margin: 0; }
+.description-header .description-actions { margin: 0; justify-content: flex-end; }
+.description-language-label { color: var(--muted); font-size: .8125rem; }
+.description-actions .button { white-space: normal; text-align: center; }
+@media (max-width: 640px) {
+  .job-dialog .description-header { margin: 20px 0 12px; }
+  .job-dialog .description-header .detail-section-label { margin: 0; }
+  .description-header .description-actions { justify-content: flex-start; }
+}
+
+/* Translate the whole posting from the top; country remains visible as metadata. */
+.detail-heading-copy { flex: 1; }
+.detail-translation { flex: none; margin-left: auto; max-width: 100%; }
+.detail-translation .description-actions { justify-content: flex-end; margin: 0; }
+.detail-translation .description-status { max-width: 260px; margin: 6px 0 0; }
+.detail-meta .detail-country { gap: 6px; color: var(--muted); }
+@media (max-width: 640px) {
+  .job-dialog .detail-heading > .detail-heading-copy { flex: 1 1 0; }
+  .job-dialog .detail-heading > .detail-translation { flex: 1 1 100%; margin-left: 0; }
+  .detail-translation .description-actions { justify-content: flex-start; }
+  .detail-translation .description-status { max-width: none; }
+}
+
+/* Improve the legibility of secondary job details without enlarging the main title. */
+.job-dialog .detail-heading .company-name,
+.job-dialog .detail-meta,
+.job-dialog .detail-country,
+.job-dialog .job-deadline,
+.job-dialog .detail-meta .source-badge,
+.job-dialog .report-note,
+.job-dialog .description-note,
+.job-dialog .detail-footer > p { font-size: .875rem; }
+.job-dialog .job-tags .tag { font-size: .8125rem; }
+@media (max-width: 640px) {
+  .job-dialog .dialog-top { margin-bottom: 12px; }
+  .job-dialog .detail-heading { margin-bottom: 10px; }
+  .job-dialog .detail-meta { gap: 6px 10px; margin-bottom: 8px; }
+  .job-dialog .job-source-link { margin-bottom: 6px; }
+  .job-dialog .job-tags { gap: 5px; margin-bottom: 10px; }
+  .job-dialog .report-note { margin-bottom: 12px; }
+  .job-dialog .description-header { margin-top: 16px; }
+}

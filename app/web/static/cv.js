@@ -1,5 +1,5 @@
-import { $, api, el, icon, tag, jobHeading, link, skillName, emptyState, loading, notice, busy, warningText, openDialog, toast } from './ui.js';
-import { savedCredential, time, date, number } from './logic.mjs';
+import { $, api, el, icon, tag, jobHeading, link, skillName, emptyState, loading, notice, busy, warningText, openDialog, toast } from './ui.js?v=20261111-6';
+import { savedCredential, time, date, number } from './logic.mjs?v=20261111-6';
 
 const SESSION_KEY = 'careerlens.cv.v1';
 export function initCV(context) {

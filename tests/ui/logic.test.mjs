@@ -44,3 +44,14 @@ test('recognizes the actual Arm job section titles', () => {
     'Qualifications', 'Qualities that will help your application stand out:', 'Additional Information:', 'In Return:'
   ]);
 });
+
+test('recognizes job headings in the IKEA posting and common alternatives without bolding prose', () => {
+  const text = 'About this work area\nWe build a platform.\nYour responsibilities\nWho you are\n- You have 5+ years of experience.\nWhat you will bring:\nOm jobbet\nQuyền lợi đối với ứng viên';
+  const parts = descriptionSegments(text);
+  assert.equal(parts.map(part => part.text).join(''), text);
+  assert.deepEqual(parts.filter(part => part.heading).map(part => part.text), [
+    'About this work area', 'Your responsibilities', 'Who you are', 'What you will bring:', 'Om jobbet', 'Quyền lợi đối với ứng viên'
+  ]);
+  assert.equal(descriptionSegments('Who you are matters to our team.').some(part => part.heading), false);
+  assert.equal(descriptionSegments('- Who you are: experienced engineer').some(part => part.heading), false);
+});
