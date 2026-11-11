@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -148,3 +149,74 @@ async def test_failed_fetch_does_not_create_a_snapshot_or_retry(tmp_path: Path) 
         await fetch_remotive(path, transport=httpx.MockTransport(handler))
     assert calls == 1
     assert not path.exists()
+
+
+async def test_jobtech_continues_from_offset_and_reuses_window_snapshot(tmp_path: Path) -> None:
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        offset = int(request.url.params["offset"])
+        limit = int(request.url.params["limit"])
+        calls.append((offset, limit))
+        return httpx.Response(
+            200, json={"hits": [jobtech_row() | {"id": str(offset + i)} for i in range(limit)]}
+        )
+
+    path = tmp_path / "next-window.json"
+    transport = httpx.MockTransport(handler)
+    await fetch_jobtech(path, offset=200, limit=125, transport=transport)
+    await fetch_jobtech(path, offset=200, limit=125, transport=transport)
+    records, errors = load_records(path)
+    assert calls == [(200, 100), (300, 25)]
+    assert [record.source_job_id for record in records] == [str(i) for i in range(200, 325)]
+    assert errors == []
+
+
+@pytest.mark.parametrize("offset,limit", [(-1, 1), (2000, 1), (1900, 200)])
+async def test_jobtech_rejects_out_of_range_window_before_fetch(
+    tmp_path: Path, offset: int, limit: int
+) -> None:
+    path = tmp_path / "invalid.json"
+    with pytest.raises(ValueError, match="window"):
+        await fetch_jobtech(path, offset=offset, limit=limit)
+    assert not path.exists()
+
+
+async def test_cli_uses_separate_snapshot_paths_for_jobtech_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.ingestion import cli
+
+    monkeypatch.chdir(tmp_path)
+    seen = []
+
+    async def fetch(path: Path, *, limit: int, offset: int) -> Path:
+        seen.append((path, offset))
+        await asyncio.to_thread(path.parent.mkdir, parents=True, exist_ok=True)
+        await asyncio.to_thread(
+            path.write_text,
+            json.dumps(
+                {
+                    "source": "jobtech",
+                    "fetched_at": datetime.now(UTC).isoformat(),
+                    "payload": {"hits": [jobtech_row()]},
+                }
+            ),
+        )
+        return path
+
+    monkeypatch.setattr(cli, "fetch_jobtech", fetch)
+    for offset in [0, 200]:
+        result = await cli.run(
+            cli.parser().parse_args(["fetch", "jobtech", "--offset", str(offset)])
+        )
+        assert result["valid_jobs"] == 1
+    assert seen[0][0] != seen[1][0]
+    assert seen[1][0].name.endswith("-offset-200.json")
+
+
+async def test_cli_rejects_offsets_for_sources_without_pagination() -> None:
+    from app.ingestion.cli import parser, run
+
+    with pytest.raises(ValueError, match="Only JobTech"):
+        await run(parser().parse_args(["fetch", "remotive", "--offset", "200"]))

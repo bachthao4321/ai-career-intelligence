@@ -121,6 +121,11 @@ class ModelPlanner:
             "Counts refer to source listings, content_hash identifies duplicate content. Skills "
             "are literal mentions, not required proficiency. No salary columns exist. Never "
             "invent columns/skills or infer normalized remote metadata from descriptions. "
+            "Location is free-form text containing city, district and country: for a city "
+            "filter use ILIKE with a contains pattern, not equality. Preserve the user's "
+            "location spelling and diacritics; do not translate or invent geographic aliases. "
+            "Use listing_count as the alias for counts. For search or clarify, set sql to null. "
+            "Keep reason under 120 characters; it is only a short routing explanation. "
             "Allowed schema: "
             + json.dumps({k: sorted(v) for k, v in SCHEMA.items()})
             + ". Output schema: "

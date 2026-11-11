@@ -21,6 +21,7 @@ from app.api.search import router as search_router
 from app.core.config import Settings
 from app.cv.service import CVService
 from app.db.session import create_engine
+from app.ingestion.description_translation import DescriptionTranslator
 from app.llm.runtime import ModelRuntime
 from app.retrieval.embeddings import Embedder, LocalMiniLM
 from app.retrieval.indexing import namespace
@@ -52,6 +53,7 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
         app.state.cv_service = cv_service
         cleanup_task = asyncio.create_task(cv_service.cleanup_loop())
         app.state.engine = engine
+        app.state.description_translator = DescriptionTranslator(config, engine)
         try:
             async with httpx.AsyncClient(
                 base_url=config.qdrant_url,

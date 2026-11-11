@@ -121,10 +121,16 @@ def adapt_jobtech(job: dict[str, Any], fetched_at: datetime) -> JobRecord:
 
 
 async def fetch_jobtech(
-    destination: Path, *, limit: int = 150, transport: httpx.AsyncBaseTransport | None = None
+    destination: Path,
+    *,
+    limit: int = 150,
+    offset: int = 0,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> Path:
     if not 1 <= limit <= 200:
         raise ValueError("Fetch limit must be between 1 and 200")
+    if offset < 0 or offset + limit > 2000:
+        raise ValueError("Fetch window must stay within the first 2000 results")
     if await asyncio.to_thread(destination.exists):
         return destination
     jobs: list[dict[str, Any]] = []
@@ -136,7 +142,7 @@ async def fetch_jobtech(
             params: dict[str, str | int] = {
                 "occupation-field": "apaJ_2ja_LuF",
                 "limit": min(100, limit - len(jobs)),
-                "offset": len(jobs),
+                "offset": offset + len(jobs),
             }
             response = await client.get(JOBTECH_ENDPOINT, params=params)
             response.raise_for_status()

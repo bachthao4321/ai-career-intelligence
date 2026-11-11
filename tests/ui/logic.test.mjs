@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { safeUrl, savedCredential, initials, duration, sourceName } from '../../app/web/static/logic.mjs';
+import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments } from '../../app/web/static/logic.mjs';
 
 test('source links allow only credential-free HTTP(S), including hostile schemes', () => {
   for (const url of ['javascript:alert(1)', 'data:text/html,<script>x</script>', 'file:///etc/passwd', '//evil.test', 'https://user:secret@example.com', 'not a url']) assert.equal(safeUrl(url), null);
@@ -20,4 +20,27 @@ test('labels preserve actual source names and do not imply a user account', () =
   assert.equal(sourceName('unknown-source'), 'unknown-source');
   assert.equal(duration(3600), '1 giờ');
   assert.equal(duration(90), '2 phút');
+});
+
+test('description line breaks render as newlines without interpreting other markup', () => {
+  assert.equal(descriptionText('A<br>B<BR />C<br/>D'), 'A\nB\nC\nD');
+  assert.equal(descriptionText('<script>alert(1)</script><br>React'), '<script>alert(1)</script>\nReact');
+  assert.equal(descriptionText('Giữ nguyên <bravo> và C++'), 'Giữ nguyên <bravo> và C++');
+});
+
+test('description highlights section labels without changing source text or treating bullets as headings', () => {
+  const input = 'Yêu cầu công việc:\n• Biết Python\nResponsibilities: Design APIs.\nVi söker dig som har erfarenhet.\nKvalifikationer\nKrav: <script>x</script>';
+  const parts = descriptionSegments(input);
+  assert.equal(parts.map(part => part.text).join(''), input);
+  assert.deepEqual(parts.filter(part => part.heading).map(part => part.text), ['Yêu cầu công việc:', 'Responsibilities:', 'Kvalifikationer', 'Krav:']);
+  assert.equal(descriptionSegments('Yêu cầu Python và SQL').some(part => part.heading), false);
+  assert.deepEqual(descriptionSegments('Benefits<br>Health care').filter(part => part.heading).map(part => part.text), ['Benefits']);
+});
+
+test('recognizes the actual Arm job section titles', () => {
+  const input = 'What you might be working on as a Graduate?\nBody\nWe are looking for individuals who:\nQualifications\nQualities that will help your application stand out:\nAdditional Information:\nIn Return:';
+  assert.deepEqual(descriptionSegments(input).filter(part => part.heading).map(part => part.text), [
+    'What you might be working on as a Graduate?', 'We are looking for individuals who:',
+    'Qualifications', 'Qualities that will help your application stand out:', 'Additional Information:', 'In Return:'
+  ]);
 });

@@ -30,6 +30,7 @@ def parser() -> argparse.ArgumentParser:
     fetch = commands.add_parser("fetch")
     fetch.add_argument("source", choices=["jobtech", "remotive", "itviec"])
     fetch.add_argument("--limit", type=int)
+    fetch.add_argument("--offset", type=int, default=0, help="JobTech result offset (default: 0)")
     ingest = commands.add_parser("import")
     ingest.add_argument("path", type=Path)
     ingest.add_argument(
@@ -58,12 +59,18 @@ def write_report(path: Path, value: dict[str, Any]) -> None:
 
 async def run(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "fetch":
-        path = Path("data/raw") / f"{args.source}-{datetime.now(UTC).date()}.json"
+        if args.offset and args.source != "jobtech":
+            raise ValueError("Only JobTech supports result offsets")
+        suffix = f"-offset-{args.offset}" if args.offset else ""
+        path = Path("data/raw") / f"{args.source}-{datetime.now(UTC).date()}{suffix}.json"
         fetcher = {"jobtech": fetch_jobtech, "remotive": fetch_remotive, "itviec": fetch_itviec}[
             args.source
         ]
         limit = args.limit if args.limit is not None else (10 if args.source == "itviec" else 150)
-        await fetcher(path, limit=limit)
+        if args.source == "jobtech":
+            await fetch_jobtech(path, limit=limit, offset=args.offset)
+        else:
+            await fetcher(path, limit=limit)
         records, errors = await asyncio.to_thread(load_records, path)
         return {"snapshot": str(path), "valid_jobs": len(records), "skipped": errors}
     settings = Settings()

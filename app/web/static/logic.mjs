@@ -1,5 +1,5 @@
 export const sourceName = source => ({ jobtech: 'JobTech', itviec: 'ITviec', topcv: 'TopCV', synthetic: 'Dữ liệu giả lập', 'synthetic-fixture': 'Dữ liệu giả lập' }[source] || source);
-export const workplaceName = value => ({ remote: 'Remote', hybrid: 'Hybrid', onsite: 'Tại văn phòng' }[value] || 'Chưa ghi nhận');
+export const workplaceName = value => ({ remote: 'Từ xa', hybrid: 'Kết hợp từ xa và văn phòng', onsite: 'Tại văn phòng' }[value] || 'Chưa có thông tin');
 export const number = value => new Intl.NumberFormat('vi-VN').format(value ?? 0);
 export const date = value => value && Number.isFinite(new Date(value).getTime()) ? new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value)) : 'Chưa ghi nhận';
 export const time = value => new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
@@ -15,4 +15,22 @@ export function savedCredential(value, now = Date.now()) {
   } catch { return null; }
 }
 export function duration(seconds) { return seconds >= 3600 && seconds % 3600 === 0 ? `${seconds / 3600} giờ` : `${Math.ceil(seconds / 60)} phút`; }
-export const columnLabel = key => ({ listing_count: 'Số tin', unique_content_count: 'Nhóm nội dung', skill_slug: 'Kỹ năng', source: 'Nguồn', workplace_type: 'Hình thức', location: 'Địa điểm', company: 'Công ty', title: 'Vị trí', n: 'Số lượng', count: 'Số lượng' }[key] || key.replaceAll('_', ' '));
+export const columnLabel = key => ({ listing_count: 'Số tin', unique_content_count: 'Việc làm không trùng', skill_slug: 'Kỹ năng', source: 'Nguồn', workplace_type: 'Hình thức', location: 'Địa điểm', company: 'Công ty', title: 'Vị trí', n: 'Số lượng', count: 'Số lượng' }[key] || key.replaceAll('_', ' '));
+
+// Treat line-break tags as formatting while keeping all other markup as text.
+export const descriptionText = value => value.replace(/<br\s*\/?\s*>/gi, '\n');
+
+// Only highlight recognizable section labels; keep their wording and all text intact.
+const descriptionHeading = /^(\s*)((?:yêu cầu(?: công việc| ứng viên)?|trách nhiệm(?: công việc)?|mô tả công việc|quyền lợi(?: được hưởng)?|phúc lợi|nhiệm vụ(?: chính)?|kỹ năng(?: yêu cầu)?|về (?:công ty|chúng tôi)|job (?:description|requirements|responsibilities|overview)|(?:key |your )?responsibilities|(?:required |preferred )?(?:qualifications|skills|requirements)|(?:what you(?:'ll| will) do|what we (?:offer|are looking for)|about (?:the (?:role|job|company)|us)|benefits|additional information|in return|we are looking for individuals who|qualities that will help your application stand out|what you might be working on as a graduate)|arbetsuppgifter|(?:dina |våra )?(?:arbetsuppgifter|kvalifikationer)|(?:vi söker dig som|om (?:tjänsten|rollen|oss)|krav|meriterande|ansvar|förmåner)))(\s*[:：?])?(?=\s|$)/iu;
+export function descriptionSegments(value) {
+  const text = descriptionText(value);
+  return text.split(/(?<=\n)/).flatMap(line => {
+    const match = descriptionHeading.exec(line);
+    if (!match || (!match[3] && line.slice(match[0].length).trim())) return [{ text: line, heading: false }];
+    return [
+      { text: match[1], heading: false },
+      { text: match[2] + (match[3] || ''), heading: true },
+      { text: line.slice(match[0].length), heading: false },
+    ];
+  });
+}

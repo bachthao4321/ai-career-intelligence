@@ -10,10 +10,10 @@ export function initCV(context) {
     credentials = null; profile = null; remember(null);
     $('cv-active').hidden = true; $('cv-empty').hidden = false;
     $('cv-skills').replaceChildren(); $('cv-pages').replaceChildren(); $('cv-expiry').textContent = '';
-    $('cv-match-results').replaceChildren(emptyState('Hồ sơ đã sẵn sàng.', 'Chọn “Tìm điểm giao” để bắt đầu đối chiếu.', 'scan'));
+    $('cv-match-results').replaceChildren(emptyState('Hồ sơ đã sẵn sàng.', 'Chọn “Đối chiếu” để tìm việc làm liên quan đến CV.', 'scan'));
     $('cv-match-results').setAttribute('aria-busy', 'false');
     $('match-form').reset(); $('cv-file').value = '';
-    busy($('match-submit'), false, 'Tìm điểm giao');
+    busy($('match-submit'), false, 'Đối chiếu');
     notice($('cv-message'), message, message ? 'warning' : '');
   }
   function expiry() {
@@ -33,26 +33,26 @@ export function initCV(context) {
     $('cv-page-count').textContent = `${number(profile.pages.length)} trang đã đọc`;
     $('cv-skill-count').textContent = number(profile.skills.length);
     $('cv-skills').replaceChildren(...(profile.skills.length ? profile.skills.map(skill => {
-      const detail = el('details', { class: 'cv-skill' }, el('summary', {}, skill.name, el('span', { text: `${skill.evidence.length} bằng chứng` })));
+      const detail = el('details', { class: 'cv-skill' }, el('summary', {}, skill.name, el('span', { text: `${skill.evidence.length} đoạn trích` })));
       for (const span of skill.evidence) {
         const page = profile.pages.find(item => item.number === span.page);
         detail.append(el('p', { class: 'evidence-label', text: `Trang ${span.page}` }));
         if (page) detail.append(el('blockquote', { class: 'evidence-block' }, page.text.slice(Math.max(0, span.start - 55), span.start), el('mark', { text: span.text }), page.text.slice(span.end, Math.min(page.text.length, span.end + 55))));
       }
       return detail;
-    }) : [el('p', { class: 'report-note', text: 'Chưa nhận diện được kỹ năng trong danh mục. Kiểm tra văn bản hoặc nhập vị trí bạn muốn tìm.' })]));
+    }) : [el('p', { class: 'report-note', text: 'Chưa tìm thấy kỹ năng trong CV. Hãy kiểm tra văn bản đã đọc hoặc nhập vị trí bạn muốn tìm.' })]));
     $('cv-pages').replaceChildren(...profile.pages.map(page => el('section', {}, el('h3', { class: 'cv-page-label', text: `TRANG ${page.number}` }), el('pre', { class: 'cv-page-text', text: page.text || 'Trang này chưa có văn bản được đọc.' }))), el('p', { class: 'report-note', text: warningText(profile.warnings) }));
     expiry();
   }
   function matchCard(job) {
     const shared = job.matched_skills.length, total = shared + job.skills_not_seen_in_cv.length;
     const coverage = el('div', { class: 'coverage' });
-    coverage.append(el('div', { class: 'coverage-label' }, el('span', { text: total ? 'Kỹ năng được nhắc trùng với CV' : 'Tin chưa có kỹ năng được nhận diện' }), total ? el('strong', { text: `${shared} / ${total}` }) : null));
+    coverage.append(el('div', { class: 'coverage-label' }, el('span', { text: total ? 'Kỹ năng trùng với CV' : 'Tin chưa có kỹ năng được nhận diện' }), total ? el('strong', { text: `${shared} / ${total}` }) : null));
     if (total) { const fill = el('span', { class: 'bar-fill' }); fill.style.width = `${shared / total * 100}%`; coverage.append(el('div', { class: 'bar-track', 'aria-hidden': 'true' }, fill)); }
-    const compare = el('div', { class: 'comparison-grid' }, el('div', {}, el('h4', { text: 'Được nhắc trong cả hai' }), ...(job.matched_skills.length ? job.matched_skills.map(skill => tag(skillName(skill.slug, context.overview()), 'green')) : [el('span', { class: 'muted small', text: 'Chưa tìm thấy' })])), el('div', {}, el('h4', { text: 'Chưa thấy trong CV' }), ...(job.skills_not_seen_in_cv.length ? job.skills_not_seen_in_cv.map(skill => tag(skillName(skill.slug, context.overview()), 'amber')) : [el('span', { class: 'muted small', text: 'Không có trong phần đã nhận diện' })])));
-    const details = el('details', { class: 'comparison-detail' }, el('summary', {}, 'Xem bằng chứng đối chiếu', icon('chevron-down')));
+    const compare = el('div', { class: 'comparison-grid' }, el('div', {}, el('h4', { text: 'Có trong CV và tin tuyển dụng' }), ...(job.matched_skills.length ? job.matched_skills.map(skill => tag(skillName(skill.slug, context.overview()), 'green')) : [el('span', { class: 'muted small', text: 'Chưa tìm thấy' })])), el('div', {}, el('h4', { text: 'Chưa thấy trong CV' }), ...(job.skills_not_seen_in_cv.length ? job.skills_not_seen_in_cv.map(skill => tag(skillName(skill.slug, context.overview()), 'amber')) : [el('span', { class: 'muted small', text: 'Không có trong phần đã nhận diện' })])));
+    const details = el('details', { class: 'comparison-detail' }, el('summary', {}, 'Xem đoạn trích đối chiếu', icon('chevron-down')));
     for (const skill of job.matched_skills) details.append(el('h4', { text: skillName(skill.slug, context.overview()) }), el('blockquote', { class: 'evidence-block', text: `CV · ${skill.cv_evidence.map(span => `trang ${span.page}: “${span.text}”`).join('; ')}\nTin gốc · “${skill.job_evidence.text}”` }));
-    if (job.skills_not_seen_in_cv.length) details.append(el('h4', { text: 'Được nhắc trong tin, chưa thấy trong CV' }), ...job.skills_not_seen_in_cv.map(skill => el('blockquote', { class: 'evidence-block', text: `${skillName(skill.slug, context.overview())} · Tin gốc: “${skill.job_evidence.text}”` })));
+    if (job.skills_not_seen_in_cv.length) details.append(el('h4', { text: 'Tin tuyển dụng có nhắc, CV chưa đề cập' }), ...job.skills_not_seen_in_cv.map(skill => el('blockquote', { class: 'evidence-block', text: `${skillName(skill.slug, context.overview())} · Tin gốc: “${skill.job_evidence.text}”` })));
     if (job.cv_skills_not_mentioned_in_job.length) details.append(el('h4', { text: 'Có trong CV, chưa thấy trong tin' }), el('p', { class: 'report-note', text: job.cv_skills_not_mentioned_in_job.map(slug => skillName(slug, context.overview())).join(', ') }));
     return el('article', { class: 'match-card' }, jobHeading(job, context.openJob), coverage, compare, total || job.cv_skills_not_mentioned_in_job.length ? details : null, el('div', { class: 'job-card-footer match-footer' }, link(job.source_url, 'Mở tin gốc'), el('button', { class: 'text-button', onclick: () => context.openJob(job.job_id) }, 'Xem công việc', icon('arrow-right'))));
   }
@@ -66,20 +66,20 @@ export function initCV(context) {
     if (target) json.target_role = target;
     if ($('cv-location').value.trim()) json.filters.location = $('cv-location').value.trim();
     busy($('match-submit'), true, 'Đang đối chiếu');
-    $('cv-match-results').setAttribute('aria-busy', 'true'); $('cv-match-results').replaceChildren(loading('Đang tìm điểm giao giữa CV và công việc…'));
+    $('cv-match-results').setAttribute('aria-busy', 'true'); $('cv-match-results').replaceChildren(loading('Đang tìm việc làm liên quan đến CV…'));
     try {
       const report = await api(`/cv/${currentCredentials.id}/matches`, { method: 'POST', headers: authorization(currentCredentials), signal: current.signal, json });
       if (matching !== current || credentials?.id !== currentCredentials.id || expiry()) return;
-      const header = el('h2', { class: 'match-result-heading' }, 'Công việc có điểm giao ', el('span', { class: 'count-pill', text: number(report.items.length) }));
-      const note = el('p', { class: 'report-note', text: `Đối chiếu ${number(report.unique_documents)} nhóm tin trong bộ lọc. “Chưa thấy trong CV” không kết luận bạn không biết kỹ năng đó hay công việc bắt buộc yêu cầu. Điểm xếp hạng chưa phải xác suất được tuyển.` });
-      $('cv-match-results').replaceChildren(header, note, ...(report.items.length ? report.items.map(matchCard) : [emptyState('Chưa tìm thấy điểm giao trong phạm vi này.', 'Thử một vị trí khác, bỏ bộ lọc địa điểm hoặc kiểm tra kỹ năng/văn bản đã đọc.', 'scan')]));
+      const header = el('h2', { class: 'match-result-heading' }, 'Việc làm liên quan đến CV ', el('span', { class: 'count-pill', text: number(report.items.length) }));
+      const note = el('p', { class: 'report-note', text: `Đã so sánh với ${number(report.unique_documents)} việc làm. “Chưa thấy trong CV” chỉ có nghĩa là CV chưa đề cập kỹ năng đó. Thứ tự kết quả không dự đoán khả năng được tuyển.` });
+      $('cv-match-results').replaceChildren(header, note, ...(report.items.length ? report.items.map(matchCard) : [emptyState('Chưa tìm thấy việc làm liên quan', 'Thử một vị trí khác, bỏ bộ lọc địa điểm hoặc kiểm tra kỹ năng/văn bản đã đọc.', 'scan')]));
       const warning = warningText(report.warnings.filter(code => !['literal_mentions_not_verified_proficiency_or_negation', 'pdf_reading_order_may_differ_from_visual_layout'].includes(code)));
       if (warning) $('cv-match-results').append(el('p', { class: 'report-note', text: warning }));
     } catch (error) {
       if (error.name === 'AbortError' || matching !== current) return;
       if (error.status === 404) wipe('Phiên CV đã hết hạn hoặc không còn truy cập được. Hãy tải lại CV.');
       else $('cv-match-results').replaceChildren(emptyState('Chưa thể đối chiếu CV.', error.message, 'info', el('button', { class: 'button secondary', onclick: match, text: 'Thử lại' })));
-    } finally { if (matching === current) { busy($('match-submit'), false, 'Tìm điểm giao'); $('cv-match-results').setAttribute('aria-busy', 'false'); } }
+    } finally { if (matching === current) { busy($('match-submit'), false, 'Đối chiếu'); $('cv-match-results').setAttribute('aria-busy', 'false'); } }
   }
   async function upload(file) {
     if (!file || uploading || credentials) return;
@@ -91,7 +91,7 @@ export function initCV(context) {
     try {
       const data = await api('/cv', { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: file });
       credentials = { id: data.id, token: data.access_token, expires_at: data.expires_at };
-      showProfile(data); notice($('cv-message'), ''); toast('Đã đọc CV. Bạn có thể mở từng kỹ năng để xem bằng chứng.');
+      showProfile(data); notice($('cv-message'), ''); toast('Đã đọc CV. Bạn có thể mở từng kỹ năng để xem đoạn trích.');
       if (profile?.skills.length) await match();
     } catch (error) { notice($('cv-message'), error.message, 'error'); }
     finally { uploading = false; $('cv-file').disabled = false; $('drop-zone').setAttribute('aria-busy', 'false'); $('cv-file').value = ''; }
@@ -106,7 +106,7 @@ export function initCV(context) {
     if (!credentials) { $('delete-dialog').close(); return; }
     const current = { ...credentials }; matching?.abort(); matching = null;
     busy($('confirm-delete-cv'), true, 'Đang xóa'); $('match-submit').disabled = true;
-    try { await api(`/cv/${current.id}`, { method: 'DELETE', headers: authorization(current) }); wipe(); $('delete-dialog').close(); toast('Đã xóa hồ sơ CV khỏi database đang chạy.'); }
+    try { await api(`/cv/${current.id}`, { method: 'DELETE', headers: authorization(current) }); wipe(); $('delete-dialog').close(); toast('Đã xóa hồ sơ CV khỏi hệ thống đang chạy.'); }
     catch (error) { if (error.status === 404) { wipe(); $('delete-dialog').close(); toast('Hồ sơ không còn truy cập được.'); } else { $('delete-dialog').close(); notice($('cv-message'), `Chưa xóa được CV. ${error.message}`, 'error'); } }
     finally { busy($('confirm-delete-cv'), false, 'Xóa hồ sơ'); $('match-submit').disabled = false; }
   });

@@ -199,6 +199,16 @@ class CVDocument(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
+class JobTitleTranslation(Base):
+    __tablename__ = "job_title_translations"
+    title_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    model_signature: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title_en: Mapped[str] = mapped_column(Text)
+    title_vi: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class LlmDecision(Base):
     __tablename__ = "llm_decisions"
     key: Mapped[str] = mapped_column(String(64), primary_key=True)

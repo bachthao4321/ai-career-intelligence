@@ -1,7 +1,8 @@
+from ipaddress import IPv4Address, IPv4Network
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -31,6 +32,7 @@ class Settings(BaseSettings):
     analytics_database_url: SecretStr | None = None
     analytics_schema: str = Field(default="public", pattern=r"^[a-z][a-z0-9_]{0,62}$")
     analytics_timeout_ms: int = Field(default=1500, ge=100, le=5000)
+    model_lan_http_hosts: list[str] = Field(default_factory=list, max_length=8)
     agent_model_enabled: bool = False
     agent_model_base_url: str = "http://localhost:11434/v1"
     agent_model_name: str = Field(default="qwen3:8b", min_length=1, max_length=100)
@@ -123,14 +125,26 @@ class Settings(BaseSettings):
                     raise ValueError("Replace production database password placeholders")
         return self
 
-    @field_validator("llm_api_key", mode="before")
+    @field_validator("llm_api_key", "agent_model_api_key", mode="before")
     @classmethod
     def empty_model_key(cls, value: object) -> object:
         return None if value == "" else value
 
+    @field_validator("model_lan_http_hosts")
+    @classmethod
+    def validate_lan_hosts(cls, values: list[str]) -> list[str]:
+        networks = [
+            IPv4Network(value) for value in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+        ]
+        for host in values:
+            address = IPv4Address(host)
+            if not any(address in network for network in networks):
+                raise ValueError("LAN HTTP exceptions must be explicit RFC1918 IPv4 addresses")
+        return values
+
     @field_validator("agent_model_base_url", "llm_base_url")
     @classmethod
-    def validate_model_origin(cls, value: str) -> str:
+    def validate_model_origin(cls, value: str, info: ValidationInfo) -> str:
         from urllib.parse import urlsplit
 
         url = urlsplit(value)
@@ -144,7 +158,13 @@ class Settings(BaseSettings):
         ):
             raise ValueError("Model URL must be HTTP(S), without credentials/query/fragment")
         if url.scheme != "https" and url.hostname not in {"localhost", "127.0.0.1", "::1"}:
-            raise ValueError("Remote model endpoints require HTTPS")
+            allowed_lan = info.data.get("app_env") == "local" and url.hostname in info.data.get(
+                "model_lan_http_hosts", []
+            )
+            if not allowed_lan:
+                raise ValueError(
+                    "Remote model endpoints require HTTPS or an explicit local LAN host"
+                )
         return value.rstrip("/")
 
     @field_validator("database_url")

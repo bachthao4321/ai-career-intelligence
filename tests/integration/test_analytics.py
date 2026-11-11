@@ -106,6 +106,17 @@ async def test_scoped_counts_duplicates_and_current_evidence(analytics: Analytic
     assert (await a.public.execute(query)).rows == [{"n": 1}]
 
 
+@pytest.mark.parametrize(
+    "operator,pattern,expected",
+    [("LIKE", "%Minh%", 2), ("ILIKE", "%MINH%", 2), ("LIKE", "%s", 0)],
+)
+async def test_location_patterns_are_literals_not_driver_parameters(
+    analytics: AnalyticsHarness, operator: str, pattern: str, expected: int
+) -> None:
+    query = f"SELECT COUNT(*) AS n FROM jobs WHERE location {operator} '{pattern}'"
+    assert (await analytics.public.execute(query)).rows == [{"n": expected}]
+
+
 async def test_database_denies_base_access_writes_and_cross_scope_even_without_validator(
     analytics: AnalyticsHarness,
 ) -> None:

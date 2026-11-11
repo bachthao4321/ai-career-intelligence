@@ -4,11 +4,11 @@ Nền tảng hỗ trợ tìm việc IT bằng ngôn ngữ tự nhiên, phân tí
 
 ## Trạng thái
 
-M0 đã hoàn thành. M1 đã có importer idempotent, lịch sử nguồn, curated skill catalog, extraction kèm evidence, alias review, quota DeepSeek và API đọc jobs. Dataset local hiện có 145 tin Data/IT JobTech (CC0) và 10 tin ITviec dành riêng cho nghiên cứu cá nhân local. Xem [baseline M1](docs/M1_VALIDATION.md) và [nguồn Việt Nam](docs/VIETNAM_SOURCES.md).
+M0 đã hoàn thành. M1 đã có importer idempotent, lịch sử nguồn, curated skill catalog, extraction kèm evidence, alias review, quota DeepSeek và API đọc jobs. Snapshot local ngày 2026-11-10 có **838 tin / 810 nhóm nội dung**: 821 JobTech, 10 ITviec nghiên cứu cá nhân local và 7 Remotive. Xem [lần bổ sung dữ liệu](docs/DATA_REFRESH.md), [baseline M1](docs/M1_VALIDATION.md) và [nguồn Việt Nam](docs/VIETNAM_SOURCES.md). Đây là dữ liệu local không nằm trong Git; checkout mới không tự có các tin này.
 
 M2 đã có search BM25/dense/hybrid, embeddings ONNX đa ngôn ngữ chạy local, Qdrant indexing incremental/resumable và pilot 60 query. **BM25 là mặc định**: hybrid chưa vượt baseline trên phần test của pilot nhãn silver; xem [kết quả M2](docs/M2_VALIDATION.md).
 
-M3 đã có `/ask`, router LangGraph, các mẫu thống kê offline, adapter chat tùy chọn, AST SQL allowlist và PostgreSQL login riêng chỉ đọc scoped views. Xem [hướng dẫn M3](docs/ANALYTICS.md) và [kiểm chứng M3](docs/M3_VALIDATION.md). Các adapter chat mới kiểm thử bằng mock; chưa gọi model thật để đánh giá chất lượng routing/text-to-SQL.
+M3 đã có `/ask`, router LangGraph, các mẫu thống kê offline, adapter chat tùy chọn, AST SQL allowlist và PostgreSQL login riêng chỉ đọc scoped views. Xem [hướng dẫn M3](docs/ANALYTICS.md) và [kiểm chứng M3](docs/M3_VALIDATION.md). Đã nối Qwen LAN và chạy smoke thực tế cho routing/text-to-SQL; đây chưa phải benchmark held-out. Xem [kiểm chứng Qwen](docs/QWEN_LAN_VALIDATION.md).
 
 M4 đã có CV PDF upload, trích kỹ năng có bằng chứng theo trang, BM25 + skill-coverage matching và báo cáo kỹ năng chưa thấy trong CV. Profile dùng token riêng, TTL mặc định 1 giờ và API xóa; PDF gốc không được lưu. Toàn bộ xử lý CV chạy local, không gọi LLM/embeddings hoặc gửi CV tới Qdrant. Xem [hướng dẫn CV](docs/CV_MATCHING.md) và [kiểm chứng M4](docs/M4_VALIDATION.md).
 

@@ -1,10 +1,15 @@
-import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, loading, emptyState, openDialog, toast } from './ui.js';
-import { number, sourceName, workplaceName, date, duration } from './logic.mjs';
+import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js';
+import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText } from './logic.mjs';
 import { initJobs } from './jobs.js';
 import { initAnalytics } from './analytics.js';
 import { initCV } from './cv.js';
 
 hydrateIcons();
+// Scroll offsets follow the actual sticky navigation height, including text scaling.
+const sidebar = document.querySelector('.sidebar');
+new ResizeObserver(() => document.documentElement.style.setProperty('--sticky-offset',
+  `${matchMedia('(max-width: 800px)').matches ? Math.ceil(sidebar.getBoundingClientRect().height) + 12 : 0}px`
+)).observe(sidebar);
 let overview = null, detailController = null, refreshing = false;
 const context = { overview: () => overview, openJob };
 const jobs = initJobs(context);
@@ -15,7 +20,7 @@ function navigate() {
   const view = ['jobs', 'analytics', 'cv'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'jobs';
   document.querySelectorAll('.view').forEach(section => { section.hidden = section.id !== `view-${view}`; });
   document.querySelectorAll('[data-view]').forEach(item => { const active = item.dataset.view === view; item.classList.toggle('active', active); if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current'); });
-  $('breadcrumb-current').textContent = { jobs: 'Khám phá việc làm', analytics: 'Hỏi dữ liệu', cv: 'Đối chiếu CV' }[view];
+  $('breadcrumb-current').textContent = { jobs: 'Việc làm', analytics: 'Hỏi dữ liệu', cv: 'Đối chiếu CV' }[view];
   document.title = `${$('breadcrumb-current').textContent} · CareerLens`;
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
@@ -33,7 +38,7 @@ function fillOptions(id, items) {
 function renderOverview(data) {
   overview = data;
   $('stat-listings').textContent = number(data.listings); $('stat-unique').textContent = number(data.unique_documents); $('stat-sources').textContent = number(data.sources.length);
-  $('dataset-caption').textContent = data.scope === 'local_research' ? 'Dataset nghiên cứu local' : 'Dataset theo phạm vi nguồn';
+  $('dataset-caption').textContent = data.scope === 'local_research' ? 'Dữ liệu nghiên cứu trên máy' : 'Dữ liệu từ các nguồn được phép hiển thị';
   fillOptions('filter-source', data.sources.map(item => ({ value: item.source, label: `${sourceName(item.source)} · ${number(item.count)}` })));
   fillOptions('filter-skill', data.skills.map(item => ({ value: item.slug, label: item.name })));
   $('top-skills').replaceChildren(...(data.skills.length ? data.skills.slice(0, 5).map(item => {
@@ -41,11 +46,11 @@ function renderOverview(data) {
     return el('button', { class: 'skill-chart-button', title: `Tìm tin có kỹ năng ${item.name}`, onclick: () => jobs.searchSkill(item.slug) }, el('div', { class: 'bar-label' }, el('span', { text: item.name }), el('strong', { text: `${number(item.count)} tin` })), el('div', { class: 'bar-track', 'aria-hidden': 'true' }, fill));
   }) : [el('p', { class: 'muted small', text: 'Chưa có kỹ năng được nhận diện trong dữ liệu.' })]));
   $('about-sources').replaceChildren(...data.sources.map(item => el('div', { class: 'about-source' }, el('span', { text: sourceName(item.source) }), el('strong', { text: `${number(item.count)} tin` }))));
-  $('about-scope').textContent = data.scope === 'local_research' ? 'Đang dùng phạm vi nghiên cứu local. ITviec/TopCV, nếu có, chỉ dành cho nghiên cứu cá nhân; không được xem là dữ liệu có quyền tái phân phối.' : 'Đang dùng phạm vi nguồn public. Các nguồn dành riêng cho nghiên cứu local đã được loại trước khi thống kê và tìm kiếm.';
-  $('about-updated').textContent = data.latest_fetch ? `Lần thu thập gần nhất trong dataset: ${date(data.latest_fetch)}. Đây không phải thời điểm đăng của mọi tin.` : 'Chưa có tin trong dataset. Cần nạp dữ liệu trước khi khám phá.';
-  $('cv-upload-help').textContent = `PDF có text · tối đa ${(data.cv_max_bytes / 1024 / 1024).toFixed(0)} MiB · ${data.cv_max_pages} trang`;
-  $('cv-privacy-note').textContent = `Xử lý local, không gửi tới model bên ngoài. Hồ sơ lưu tạm ${duration(data.cv_ttl_seconds)} và có thể xóa bất cứ lúc nào.`;
-  $('planner-note').textContent = data.model_planner_enabled ? 'Ngoài câu hỏi mẫu, máy chủ có cấu hình planner model. Hãy kiểm tra truy vấn và phạm vi kết quả.' : 'Hiện hỗ trợ các câu hỏi thống kê mẫu; câu hỏi ngoài phạm vi sẽ yêu cầu làm rõ.';
+  $('about-scope').textContent = data.scope === 'local_research' ? 'Bản chạy trên máy có thể bao gồm tin ITviec hoặc TopCV để nghiên cứu cá nhân. Những tin này chưa được cấp quyền phân phối lại.' : 'Chỉ hiển thị và thống kê các nguồn được phép dùng trong bản công khai. Tin dành riêng cho nghiên cứu cá nhân đã được loại khỏi kết quả.';
+  $('about-updated').textContent = data.latest_fetch ? `Dữ liệu được cập nhật gần nhất: ${date(data.latest_fetch)}. Ngày đăng của từng tin có thể khác.` : 'Chưa có tin tuyển dụng để hiển thị.';
+  $('cv-upload-help').textContent = `PDF chọn được văn bản · tối đa ${(data.cv_max_bytes / 1024 / 1024).toFixed(0)} MiB · ${data.cv_max_pages} trang`;
+  $('cv-privacy-note').textContent = `Xử lý trên máy chủ đang chạy, không gửi tới model bên ngoài. Hồ sơ lưu tạm ${duration(data.cv_ttl_seconds)} và có thể xóa bất cứ lúc nào.`;
+  $('planner-note').textContent = data.model_planner_enabled ? 'Bạn có thể hỏi bằng ngôn ngữ tự nhiên. Câu trả lời dựa trên dữ liệu đã thu thập. Bạn có thể mở phần “Xem cách tính” để kiểm tra.' : 'Hiện hỗ trợ các câu hỏi thống kê mẫu; câu hỏi ngoài phạm vi sẽ yêu cầu làm rõ.';
 }
 async function checkConnection() {
   let ready = false;
@@ -59,12 +64,45 @@ async function refresh() {
   const results = await Promise.allSettled([api('/platform/overview'), checkConnection()]);
   if (results[0].status === 'fulfilled') renderOverview(results[0].value);
   else {
-    if (!overview) { $('dataset-caption').textContent = 'Chưa đọc được dataset'; $('top-skills').replaceChildren(el('p', { class: 'muted small', text: 'Chưa thể đọc thống kê. Hãy thử làm mới dữ liệu.' })); $('about-scope').textContent = 'Chưa đọc được phạm vi hiện tại. Kiểm tra kết nối máy chủ và thử lại.'; }
+    if (!overview) { $('dataset-caption').textContent = 'Chưa tải được dữ liệu'; $('top-skills').replaceChildren(el('p', { class: 'muted small', text: 'Chưa thể đọc thống kê. Hãy thử làm mới dữ liệu.' })); $('about-scope').textContent = 'Chưa đọc được phạm vi hiện tại. Kiểm tra kết nối máy chủ và thử lại.'; }
     toast('Chưa đọc được dữ liệu tổng quan. Bạn có thể thử làm mới.');
   }
   refreshing = false; $('refresh-button').disabled = false;
 }
-$('refresh-button').addEventListener('click', async () => { await refresh(); await jobs.load(); });
+$('refresh-button').addEventListener('click', async () => { clearJobPresentationCache(); await refresh(); await jobs.load(); });
+
+function renderDescription(content, text) {
+  const lines = descriptionText(text).split('\n');
+  content.replaceChildren(...lines.map(line => el('div', { class: 'description-line' },
+    ...descriptionSegments(line).map(part => part.heading
+      ? el('strong', { class: 'description-heading', text: part.text })
+      : document.createTextNode(part.text)))));
+}
+function descriptionSection(job) {
+  const content = el('div', { class: 'job-description' });
+  renderDescription(content, job.description);
+  const note = el('p', { class: 'description-note', text: 'Nội dung do nhà tuyển dụng đăng.' });
+  const section = el('section', { class: 'description-section' }, el('h3', { class: 'detail-section-label', text: 'Mô tả công việc' }), note, content);
+  const status = el('p', { class: 'description-status', role: 'status' });
+  const original = el('button', { class: 'text-button', type: 'button', text: 'Xem bản gốc', hidden: true, onclick: () => {
+    renderDescription(content, job.description); content.removeAttribute('lang'); note.textContent = 'Nội dung do nhà tuyển dụng đăng.'; original.hidden = true; status.textContent = '';
+  } });
+  const select = el('select', { class: 'description-language', 'aria-label': 'Ngôn ngữ dịch mô tả' }, ...(job.description_language === 'vi' ? [] : [el('option', { value: 'vi', text: 'Tiếng Việt' })]), ...(job.description_language === 'en' ? [] : [el('option', { value: 'en', text: 'English' })]));
+  const button = el('button', { class: 'button secondary', type: 'button', text: 'Dịch mô tả', onclick: async () => {
+    const target = select.value; button.disabled = true; select.disabled = true;
+    status.textContent = 'Đang dịch toàn bộ mô tả, vui lòng chờ…';
+    try {
+      const result = await api(`/jobs/${encodeURIComponent(job.id)}/description-translation`, { method: 'POST', json: { target }, signal: AbortSignal.timeout(300000) });
+      if (!section.isConnected) return;
+      renderDescription(content, result.text); content.lang = target;
+      note.textContent = 'Bản dịch tự động, hãy đối chiếu với bản gốc.'; original.hidden = false; status.textContent = '';
+    } catch (error) { if (section.isConnected) status.textContent = error.name === 'TimeoutError' ? 'Dịch mất quá nhiều thời gian. Vui lòng thử lại.' : error.message; }
+    finally { button.disabled = false; select.disabled = false; }
+  } });
+  section.insertBefore(el('div', { class: 'description-actions' }, select, button, original), note);
+  section.insertBefore(status, content);
+  return section;
+}
 
 async function openJob(id) {
   detailController?.abort(); const current = new AbortController(); detailController = current;
@@ -72,12 +110,14 @@ async function openJob(id) {
   try {
     const job = await api(`/jobs/${encodeURIComponent(id)}`, { signal: current.signal });
     if (detailController !== current) return;
-    const heading = el('div', { class: 'detail-heading' }, avatar(job.company), el('div', {}, el('p', { class: 'company-name', text: job.company || 'Công ty chưa ghi nhận' }), el('h2', { text: job.title })));
-    const metadata = el('div', { class: 'detail-meta' }, meta(job.location || 'Địa điểm chưa ghi nhận', 'pin'), meta(workplaceName(job.workplace_type), 'briefcase'), sourceBadge(job));
+    const title = el('h2', { id: 'job-detail-title', text: job.title });
+    const heading = el('div', { class: 'detail-heading' }, avatar(job.company), el('div', {}, el('p', { class: 'company-name', text: job.company || 'Chưa có tên công ty' }), title), jobPresentation(job, title));
+    const metadata = el('div', { class: 'detail-meta' }, meta(job.location || 'Chưa có địa điểm', 'pin'), meta(workplaceName(job.workplace_type), 'briefcase'), sourceBadge(job));
+    const sourceLink = link(job.source_url, 'Xem tin tuyển dụng gốc', 'job-source-link');
     const tags = el('div', { class: 'job-tags' }, job.skills.map(skill => tag(skillName(skill.skill_slug, overview))));
-    const details = el('details', { class: 'comparison-detail' }, el('summary', {}, 'Bằng chứng kỹ năng trong tin', icon('chevron-down')));
+    const details = el('details', { class: 'comparison-detail' }, el('summary', {}, 'Xem đoạn mô tả nhắc đến kỹ năng', icon('chevron-down')));
     for (const skill of job.skills) details.append(el('blockquote', { class: 'evidence-block', text: `${skillName(skill.skill_slug, overview)} · “${skill.evidence}”` }));
-    $('job-detail').replaceChildren(heading, metadata, tags, el('p', { class: 'report-note', text: 'Các kỹ năng dưới đây là nội dung được nhắc trong tin; chưa phân loại bắt buộc, ưu tiên hoặc phủ định.' }), ...(job.skills.length ? [details] : []), el('h3', { class: 'detail-section-label', text: 'NỘI DUNG TỪ NGUỒN GỐC' }), el('div', { class: 'job-description', text: job.description }), el('div', { class: 'detail-footer' }, el('p', { text: `Thu thập ${date(job.fetched_at)} · ${job.published_at ? `Đăng ${date(job.published_at)}` : 'Chưa ghi nhận ngày đăng'}` }), link(job.source_url, 'Xem tại nguồn gốc', 'button primary')));
+    $('job-detail').replaceChildren(heading, metadata, sourceLink, tags, ...(job.skills.length ? [el('p', { class: 'report-note', text: 'Các kỹ năng trên được tìm thấy trong mô tả. Hãy đọc kỹ để biết đâu là yêu cầu bắt buộc hoặc ưu tiên.' })] : []), ...(job.skills.length ? [details] : []), descriptionSection(job), el('div', { class: 'detail-footer' }, el('p', { text: `Cập nhật ${date(job.fetched_at)} · ${job.published_at ? `Đăng ${date(job.published_at)}` : 'Chưa có ngày đăng'}` })));
   } catch (error) { if (error.name !== 'AbortError' && detailController === current) $('job-detail').replaceChildren(emptyState('Chưa thể mở công việc.', error.message, 'info')); }
 }
 

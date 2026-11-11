@@ -12,7 +12,15 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.db.models import Job, JobSkill
 from app.db.visibility import visible_jobs
+from app.ingestion.description_translation import (
+    DescriptionTranslator,
+    Language,
+    Target,
+    detect_language,
+)
 from app.ingestion.policies import local_research_only
+from app.ingestion.presentation import JobPresentation, presentations
+from app.security.demo import paid_client_gate
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -75,6 +83,7 @@ class SkillEvidence(BaseModel):
 
 class JobDetail(JobSummary):
     description: str
+    description_language: Language
     structured_skills: list[str]
     content_hash: str
     skills: list[SkillEvidence]
@@ -110,6 +119,18 @@ async def list_jobs(
     )
 
 
+@router.get("/presentation", response_model=dict[str, JobPresentation])
+async def job_presentations(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    ids: Annotated[list[uuid.UUID], Query(min_length=1, max_length=20)],
+) -> dict[str, JobPresentation]:
+    jobs = (
+        await session.scalars(select(Job).where(Job.id.in_(ids), permitted_jobs(request)))
+    ).all()
+    return await presentations(session, list(jobs), request.app.state.settings)
+
+
 @router.get("/{job_id}", response_model=JobDetail)
 async def job_detail(
     request: Request, job_id: uuid.UUID, session: Annotated[AsyncSession, Depends(get_session)]
@@ -127,7 +148,38 @@ async def job_detail(
     return JobDetail(
         **JobSummary.model_validate(job).model_dump(),
         description=job.description,
+        description_language=detect_language(job.description, job.language),
         structured_skills=job.structured_skills,
         content_hash=job.content_hash,
         skills=[SkillEvidence.model_validate(skill) for skill in skills],
     )
+
+
+class DescriptionRequest(BaseModel):
+    target: Target
+
+
+class DescriptionResponse(BaseModel):
+    text: str
+    target: Target
+
+
+@router.post("/{job_id}/description-translation", response_model=DescriptionResponse)
+async def translate_description(
+    request: Request,
+    job_id: uuid.UUID,
+    body: DescriptionRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> DescriptionResponse:
+    job = await session.scalar(select(Job).where(Job.id == job_id, permitted_jobs(request)))
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    await paid_client_gate(request, request.app.state.settings.agent_model_enabled)
+    translator = cast(DescriptionTranslator, request.app.state.description_translator)
+    try:
+        translated = await translator.translate(
+            job.description, body.target, job.source, job.source_url
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return DescriptionResponse(text=translated, target=body.target)

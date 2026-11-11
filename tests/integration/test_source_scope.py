@@ -93,6 +93,17 @@ async def test_production_hides_restricted_sources_in_list_counts_and_details(
                 page = client.get("/jobs")
                 assert page.status_code == 200, page.text
                 assert page.json()["total"] == total
+                metadata = client.get(
+                    "/jobs/presentation", params=[("ids", str(job_id)) for job_id in private_ids]
+                )
+                assert metadata.status_code == 200
+                assert len(metadata.json()) == (len(private_ids) if environment == "local" else 0)
+                assert (
+                    client.get(
+                        "/jobs/presentation", params=[("ids", str(private_ids[0]))] * 21
+                    ).status_code
+                    == 422
+                )
                 for job_id in private_ids:
                     detail = client.get(f"/jobs/{job_id}")
                     assert detail.status_code == (200 if environment == "local" else 404)

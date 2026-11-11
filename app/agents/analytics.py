@@ -186,7 +186,11 @@ class AnalyticsExecutor:
                                 {"r": f'"{schema}"."{view}"'},
                             ):
                                 raise AnalyticsUnavailable("public_role_has_local_access")
-                    result = await conn.exec_driver_sql(query.sql)
+                    # SQL has already been parsed/rebuilt by the allowlist validator.
+                    # Literal LIKE wildcards must not be read as psycopg placeholders.
+                    result = await conn.exec_driver_sql(
+                        query.sql, execution_options={"no_parameters": True}
+                    )
                     columns = list(result.keys())
                     if len(set(columns)) != len(columns):
                         raise AnalyticsUnavailable("duplicate_result_columns")

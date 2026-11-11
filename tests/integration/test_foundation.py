@@ -28,7 +28,7 @@ async def test_migration_round_trip_and_model_drift(
     async with engine.connect() as connection:
         assert (
             await connection.scalar(text("SELECT version_num FROM alembic_version"))
-            == "0007_client_quotas"
+            == "0008_job_title_translations"
         )
         columns = await connection.run_sync(lambda conn: inspect(conn).get_columns("jobs"))
         assert {column["name"] for column in columns} >= {
