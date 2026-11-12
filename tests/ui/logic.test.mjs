@@ -55,3 +55,14 @@ test('recognizes job headings in the IKEA posting and common alternatives withou
   assert.equal(descriptionSegments('Who you are matters to our team.').some(part => part.heading), false);
   assert.equal(descriptionSegments('- Who you are: experienced engineer').some(part => part.heading), false);
 });
+
+test('question completion matches prefixes without requiring Vietnamese accents', async () => {
+  const { questionCompletion } = await import('../../app/web/static/logic.mjs');
+  const options = ['Có bao nhiêu tin nhắc đến Python?', 'Tìm việc Python'];
+  assert.equal(questionCompletion('co bao', options), options[0]);
+  assert.equal(questionCompletion('TÌM', options), options[1]);
+  assert.equal(questionCompletion('', options), null);
+  assert.equal(questionCompletion(options[0], options), null);
+  assert.equal(questionCompletion('không liên quan', options), null);
+  assert.equal(questionCompletion('Có\nbao', options), null);
+});

@@ -1,5 +1,5 @@
-import { $, api, el, icon, jobCard, notice, emptyState, skeletons, busy, warningText } from './ui.js?v=20261111-6';
-import { number } from './logic.mjs?v=20261111-6';
+import { $, api, el, icon, jobCard, notice, emptyState, skeletons, busy, warningText } from './ui.js?v=20261111-24';
+import { number } from './logic.mjs?v=20261111-24';
 
 export function initJobs(context) {
   let page = 0, data = null, mode = 'browse', controller = null;

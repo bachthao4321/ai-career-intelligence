@@ -1,4 +1,4 @@
-import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261111-6';
+import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261111-24';
 
 const paths = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',
@@ -62,19 +62,13 @@ export function avatar(company) {
   return el('span', { class: `company-avatar tone-${tone}`, 'aria-hidden': 'true', text: initials(company) });
 }
 export function meta(text, symbol) { return el('span', {}, icon(symbol), text); }
-export function sourceBadge(job) { return el('span', { class: `source-badge ${job.usage_scope === 'local_research_only' ? 'private' : ''}`, title: job.usage_scope === 'local_research_only' ? 'Chỉ dùng để nghiên cứu cá nhân, chưa có quyền phân phối lại' : 'Nguồn đăng tin tuyển dụng', text: `${sourceName(job.source)}${job.usage_scope === 'local_research_only' ? ' · nghiên cứu' : ''}` }); }
-const presentationCache = new Map(), presentationQueue = new Map();
-let presentationScheduled = false, titleLanguage = 'vi';
-const titleBindings = new WeakMap();
-function applyTitleLanguage(node) {
-  const binding = titleBindings.get(node);
-  if (!binding?.value || !binding.title) return;
-  const { title, value, buttons } = binding;
-  const translated = titleLanguage !== 'original' && value[`title_${titleLanguage}`];
-  title.textContent = translated || value.original_title;
-  if (translated) title.setAttribute('lang', titleLanguage); else title.removeAttribute('lang');
-  buttons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.language === titleLanguage)));
+export function sourceBadge(job) {
+  if (job.source === 'employer_ats') return null;
+  return el('span', { class: `source-badge ${job.usage_scope === 'local_research_only' ? 'private' : ''}`, title: job.usage_scope === 'local_research_only' ? 'Tin được thu thập để nghiên cứu cá nhân và chỉ hiển thị trong bản chạy trên máy; chưa xác nhận quyền phân phối lại.' : 'Nguồn đăng tin tuyển dụng', text: `${sourceName(job.source)}${job.usage_scope === 'local_research_only' ? ' · chỉ trên máy' : ''}` });
 }
+const presentationCache = new Map(), presentationQueue = new Map();
+let presentationScheduled = false;
+const titleBindings = new WeakMap();
 
 const flagAssets = new Set(['SE', 'VN', 'DK']);
 function showPresentation(node, job, value) {
@@ -94,28 +88,12 @@ function showPresentation(node, job, value) {
       country.append(el('span', { text: value.country_names[index] || code }));
     });
   } else country.append(icon('globe'), el('span', { text: value.country_label }));
-  if (countryTarget) {
-    countryTarget.replaceChildren(...country.childNodes);
-    return;
+  if (countryTarget) countryTarget.replaceChildren(...country.childNodes);
+  const excerptTarget = titleBindings.get(node)?.excerptTarget;
+  if (excerptTarget && typeof value.source_excerpt === 'string') {
+    excerptTarget.textContent = value.source_excerpt;
   }
-  const title = titleBindings.get(node)?.title;
-  const panel = el('div', { class: 'language-menu-panel' },
-    el('p', { class: 'language-menu-label', text: 'Quốc gia' }), country);
-  if (value.title_en && value.title_vi && title) {
-    panel.append(el('p', { class: 'language-menu-label', text: 'Ngôn ngữ tiêu đề' }));
-    const buttons = [['vi', 'Tiếng Việt'], ['en', 'English'], ['original', 'Bản gốc']].map(([language, label]) =>
-      el('button', { class: 'language-option', type: 'button', 'data-language': language,
-        'aria-pressed': 'false', onclick: () => {
-          titleLanguage = language;
-          document.querySelectorAll('.job-presentation').forEach(applyTitleLanguage);
-          node.open = false;
-          node.querySelector('summary')?.focus();
-        } }, label, icon('check')));
-    panel.append(...buttons, el('p', { class: 'language-menu-note', text: 'Bản dịch tiêu đề đã được kiểm tra.' }));
-    titleBindings.set(node, { title, value, buttons, deadline });
-  } else panel.append(el('p', { class: 'language-menu-note', text: 'Chưa có bản dịch tiêu đề được kiểm tra. Đang hiển thị tiêu đề gốc.' }));
-  node.replaceChildren(el('summary', { 'aria-label': `Quốc gia và ngôn ngữ tiêu đề: ${job.title}` }, icon('globe'), el('span', { text: value.title_en && value.title_vi ? 'Ngôn ngữ tiêu đề' : 'Tiêu đề gốc' }), icon('chevron-down')), panel);
-  if (value.title_en && value.title_vi && title) applyTitleLanguage(node);
+
 }
 async function flushPresentations() {
   presentationScheduled = false;
@@ -133,13 +111,13 @@ async function flushPresentations() {
         nodes.forEach(([node, job]) => showPresentation(node, job, value));
       }
     } catch {
-      batch.forEach(([, nodes]) => nodes.forEach(([node]) => { if (node.isConnected && titleBindings.get(node)?.deadline) titleBindings.get(node).deadline.textContent = 'Chưa tải được hạn nộp'; if (node.isConnected && titleBindings.get(node)?.countryTarget) titleBindings.get(node).countryTarget.textContent = 'Chưa tải được quốc gia'; if (node.isConnected) node.replaceChildren(el('summary', { text: 'Ngôn ngữ tiêu đề' }), el('p', { class: 'language-menu-panel language-menu-note', text: 'Chưa tải được thông tin quốc gia và bản dịch.' })); }));
+      batch.forEach(([, nodes]) => nodes.forEach(([node]) => { if (node.isConnected && titleBindings.get(node)?.deadline) titleBindings.get(node).deadline.textContent = 'Chưa tải được hạn nộp'; if (node.isConnected && titleBindings.get(node)?.countryTarget) titleBindings.get(node).countryTarget.textContent = 'Chưa tải được quốc gia'; if (node.isConnected && titleBindings.get(node)?.excerptTarget) titleBindings.get(node).excerptTarget.textContent = 'Chưa tải được mô tả gốc'; }));
     }
   }
 }
-export function jobPresentation(job, title = null, deadline = null, countryTarget = null) {
-  const node = countryTarget ? el('span', { class: 'job-presentation', hidden: true }) : el('details', { class: 'job-presentation language-menu' });
-  titleBindings.set(node, { title, deadline, countryTarget });
+export function jobPresentation(job, title = null, deadline = null, countryTarget = null, excerptTarget = null) {
+  const node = el('span', { class: 'job-presentation', hidden: true });
+  titleBindings.set(node, { title, deadline, countryTarget, excerptTarget });
   const id = job.job_id || job.id;
   const cached = presentationCache.get(id);
   if (cached?.original_title === job.title) queueMicrotask(() => showPresentation(node, job, cached));
@@ -150,27 +128,17 @@ export function jobPresentation(job, title = null, deadline = null, countryTarge
   }
   return node;
 }
-document.addEventListener('toggle', event => {
-  if (event.target instanceof HTMLDetailsElement && event.target.matches('.language-menu') && event.target.open)
-    document.querySelectorAll('.language-menu[open]').forEach(menu => { if (menu !== event.target) menu.open = false; });
-}, true);
-document.addEventListener('click', event => {
-  document.querySelectorAll('.language-menu[open]').forEach(menu => { if (!menu.contains(event.target)) menu.open = false; });
-});
-document.addEventListener('keydown', event => {
-  if (event.key !== 'Escape') return;
-  const menu = document.activeElement?.closest('.language-menu[open]');
-  if (menu) { event.preventDefault(); event.stopPropagation(); menu.open = false; menu.querySelector('summary')?.focus(); }
-});
 export function clearJobPresentationCache() { presentationCache.clear(); }
-export function jobHeading(job, openJob) {
+export function jobHeading(job, openJob, excerptTarget = null) {
   const deadline = el('span', { class: 'job-deadline', text: 'Đang tải hạn nộp…' });
+  const country = el('span', { class: 'job-country', text: 'Đang tải quốc gia…' });
   const title = el('button', { class: 'job-title', type: 'button', onclick: () => openJob(job.job_id || job.id), text: job.title });
-  return el('div', { class: 'job-card-heading' }, avatar(job.company), el('div', { class: 'job-card-copy' }, el('h3', { class: 'job-title-heading' }, title), el('p', { class: 'company-name', text: job.company || 'Chưa có tên công ty' }), el('div', { class: 'job-meta' }, meta(job.location || 'Chưa có địa điểm', 'pin'), job.workplace_type && job.workplace_type !== 'unknown' ? meta(workplaceName(job.workplace_type), 'briefcase') : null, deadline), ), el('div', { class: 'job-card-tools' }, jobPresentation(job, title, deadline), sourceBadge(job)));
+  return el('div', { class: 'job-card-heading' }, avatar(job.company), el('div', { class: 'job-card-copy' }, el('h3', { class: 'job-title-heading' }, title), el('p', { class: 'company-name', text: job.company || 'Chưa có tên công ty' }), el('div', { class: 'job-meta' }, country, meta(job.location || 'Chưa có địa điểm', 'pin'), job.workplace_type && job.workplace_type !== 'unknown' ? meta(workplaceName(job.workplace_type), 'briefcase') : null, deadline), ), el('div', { class: 'job-card-tools' }, jobPresentation(job, null, deadline, country, excerptTarget), sourceBadge(job)));
 }
 export function jobCard(job, context) {
   const footer = job.duplicate_listings > 1 ? `${number(job.duplicate_listings)} tin cùng nội dung` : job.fetched_at ? `Cập nhật ${date(job.fetched_at)}` : 'Kiểm tra thông tin trong tin gốc';
-  return el('article', { class: 'job-card' }, jobHeading(job, context.openJob), job.excerpt ? el('p', { class: 'job-excerpt', text: job.excerpt }) : null,
+  const excerpt = job.excerpt ? el('p', { class: 'job-excerpt', text: 'Đang tải mô tả gốc…' }) : null;
+  return el('article', { class: 'job-card' }, jobHeading(job, context.openJob, excerpt), excerpt,
     job.skills?.length ? el('div', { class: 'job-tags' }, job.skills.slice(0, 5).map(slug => tag(skillName(slug, context.overview()))), job.skills.length > 5 ? el('button', { class: 'tag overflow-tags', type: 'button', 'aria-label': `Xem thêm ${job.skills.length - 5} kỹ năng: ${job.title}`, onclick: () => context.openJob(job.job_id || job.id), text: `+${job.skills.length - 5}` }) : null) : null,
     el('div', { class: 'job-card-footer' }, el('span', { class: 'job-footnote', text: footer }), el('div', { class: 'job-card-actions' }, link(job.source_url, 'Tin gốc'), el('button', { class: 'text-button', type: 'button', 'aria-label': `Xem chi tiết: ${job.title}`, onclick: () => context.openJob(job.job_id || job.id) }, 'Xem chi tiết', icon('arrow-right')))));
 }

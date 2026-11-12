@@ -135,3 +135,51 @@ async def test_graph_blocks_model_sql_before_execution() -> None:
     )
     assert result.status == "rejected"
     search.search.assert_not_called()
+
+
+def test_cloud_analysis_template_preserves_scope_and_blocks_extra_conditions() -> None:
+    from app.security.sql import validate_sql
+
+    plan = deterministic_plan(
+        "Trong các job Data Engineer hiện có, công nghệ cloud nào được nhắc nhiều nhất?"
+    )
+    assert plan is not None and plan.reason == "cloud_data_engineer"
+    assert "analytics_local_job_skills" in validate_sql(plan.sql or "", scope="local").sql
+    assert (
+        deterministic_plan(
+            "Trong các job Data Engineer hiện có, công nghệ cloud nào "
+            "được nhắc nhiều nhất ở Hà Nội?"
+        )
+        is None
+    )
+
+
+async def test_skill_answer_uses_matching_job_as_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from app.agents.analytics import AnalyticsResult
+
+    analytics = AsyncMock()
+    analytics.scope = "local"
+    analytics.execute.return_value = AnalyticsResult(
+        "SELECT ...", ["listing_count"], [{"listing_count": 1}], False, False
+    )
+    search = SimpleNamespace(engine=object(), settings=object())
+    documents = AsyncMock(
+        return_value=[
+            SimpleNamespace(
+                job_id="job-1",
+                title="Python Developer",
+                company="A",
+                location="Hà Nội",
+                source_url="https://example.com/job",
+            )
+        ]
+    )
+    monkeypatch.setattr("app.agents.workflow.load_documents", documents)
+    response = await CareerAgent(search, analytics, AsyncMock()).ask(
+        AskRequest(question="Có bao nhiêu tin nhắc đến Python?")
+    )
+    assert response.evidence[0]["job_id"] == "job-1"
+    assert response.evidence[0]["skill_slug"] == "python"
+    assert documents.await_args.args[2].skills == ["python"]

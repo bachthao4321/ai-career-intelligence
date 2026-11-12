@@ -1,13 +1,16 @@
 import asyncio
+import re
 from dataclasses import asdict
 from typing import Any, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.agents.analytics import AnalyticsExecutor, AnalyticsUnavailable
 from app.agents.planner import Plan, Planner, deterministic_plan
-from app.retrieval.contracts import SearchRequest, SearchResponse
+from app.retrieval.contracts import SearchFilters, SearchRequest, SearchResponse
+from app.retrieval.documents import CorpusTooLarge, load_documents
 from app.retrieval.service import SearchService
 from app.security.sql import UnsafeSQL
 
@@ -28,6 +31,7 @@ class AskResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     search: SearchResponse | None = None
     analytics: dict[str, Any] | None = None
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AgentState(TypedDict, total=False):
@@ -115,15 +119,59 @@ class CareerAgent:
             "skills_are_literal_mentions",
             "counts_are_source_listings_unless_distinct_content_hash",
         ]
-        if result.row_limit_reached:
+        if result.row_limit_reached and state["plan"].reason != "cloud_data_engineer":
             warnings.append("row_limit_reached_more_rows_may_exist")
         if result.values_truncated:
             warnings.append("long_values_truncated")
+        evidence: list[dict[str, Any]] = []
+        plan = state["plan"]
+        if state["planner"] == "deterministic" and (
+            plan.reason.startswith("skill_count:") or plan.reason == "cloud_data_engineer"
+        ):
+            slugs = (
+                [plan.reason.split(":", 1)[1]]
+                if plan.reason.startswith("skill_count:")
+                else [
+                    row["skill_slug"]
+                    for row in result.rows
+                    if row.get("skill_slug") in {"aws", "azure", "gcp"}
+                ]
+            )
+            try:
+                for slug in slugs:
+                    docs = await load_documents(
+                        self.search.engine, self.search.settings, SearchFilters(skills=[slug])
+                    )
+                    for doc in docs:
+                        if plan.reason == "cloud_data_engineer" and not re.search(
+                            r"data engineer", doc.title, re.I
+                        ):
+                            continue
+                        evidence.append(
+                            {
+                                "job_id": str(doc.job_id),
+                                "title": doc.title,
+                                "company": doc.company,
+                                "location": doc.location,
+                                "source_url": doc.source_url,
+                                "skill_slug": slug,
+                            }
+                        )
+                        if len(evidence) >= 5:
+                            break
+                    if len(evidence) >= 5:
+                        break
+            except (SQLAlchemyError, CorpusTooLarge):
+                warnings.append("evidence_unavailable")
         return {
             "response": self.response(
                 state,
                 status="ok",
-                analytics=asdict(result),
+                analytics={
+                    **asdict(result),
+                    "insight_type": plan.reason if state["planner"] == "deterministic" else "",
+                },
+                evidence=evidence,
                 answer=f"Kết quả thống kê: {len(result.rows)} dòng trong bảng analytics. "
                 "Số liệu chỉ phản ánh dataset đã thu thập.",
                 warnings=warnings,

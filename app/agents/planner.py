@@ -39,6 +39,21 @@ def normalize(text: str) -> str:
 
 def deterministic_plan(question: str) -> Plan | None:
     q = normalize(question)
+    if re.fullmatch(
+        r"(?:trong cac job data engineer hien co,? )?(?:cong nghe cloud nao duoc nhac nhieu nhat|"
+        r"cloud nao duoc nhac nhieu nhat trong (?:cac )?job data engineer)",
+        q,
+    ):
+        return Plan(
+            route="analytics",
+            reason="cloud_data_engineer",
+            sql="SELECT job_skills.skill_slug, COUNT(DISTINCT jobs.id) AS listing_count "
+            "FROM jobs JOIN job_skills ON jobs.id = job_skills.job_id "
+            "WHERE jobs.title ILIKE '%data engineer%' "
+            "AND job_skills.skill_slug IN ('aws', 'azure', 'gcp') "
+            "GROUP BY job_skills.skill_slug "
+            "ORDER BY listing_count DESC, job_skills.skill_slug LIMIT 3",
+        )
     # Full matches only: never silently discard extra conditions or injected suffixes.
     if re.fullmatch(
         r"(co bao nhieu (tin|jobs?|cong viec)( tuyen dung)?|how many jobs|total jobs)", q
@@ -53,6 +68,7 @@ def deterministic_plan(question: str) -> Plan | None:
     ):
         return Plan(
             route="analytics",
+            reason="source_counts",
             sql="SELECT source, COUNT(*) AS listing_count FROM jobs "
             "GROUP BY source ORDER BY listing_count DESC, source LIMIT 10",
         )
@@ -78,6 +94,7 @@ def deterministic_plan(question: str) -> Plan | None:
         if slug:
             return Plan(
                 route="analytics",
+                reason=f"skill_count:{slug}",
                 sql="SELECT COUNT(DISTINCT job_id) AS listing_count "
                 f"FROM job_skills WHERE skill_slug = '{slug}'",
             )

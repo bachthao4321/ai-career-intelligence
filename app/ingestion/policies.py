@@ -2,7 +2,7 @@
 
 from urllib.parse import urlsplit
 
-LOCAL_ONLY_SOURCES = ("itviec", "topcv")
+LOCAL_ONLY_SOURCES = ("itviec", "topcv", "employer_ats")
 LOCAL_ONLY_URL_PATTERN = r"^https?://([^/?#]*@)?([^/?#]*\.)?(itviec\.com|topcv\.vn)(:\d+)?(/|$)"
 
 

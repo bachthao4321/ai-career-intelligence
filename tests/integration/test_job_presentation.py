@@ -82,6 +82,7 @@ async def test_translation_is_cached_and_invalidated_without_changing_original_e
         # Machine output remains cached but cannot be displayed without review.
         assert value.title_vi is None
         assert value.original_title == record.title
+        assert value.source_excerpt == record.description[:240]
         monkeypatch.setitem(
             REVIEWED_TITLES, record.title, ("Backend Developer", "Lập trình viên Backend")
         )

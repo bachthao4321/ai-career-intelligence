@@ -1,4 +1,10 @@
-export const sourceName = source => ({ jobtech: 'JobTech', itviec: 'ITviec', topcv: 'TopCV', synthetic: 'Dữ liệu giả lập', 'synthetic-fixture': 'Dữ liệu giả lập' }[source] || source);
+export const sourceName = source => ({ jobtech: 'JobTech', itviec: 'ITviec', topcv: 'TopCV', employer_ats: 'Tuyển dụng công ty', synthetic: 'Dữ liệu giả lập', 'synthetic-fixture': 'Dữ liệu giả lập' }[source] || source);
+export function questionCompletion(value, choices) {
+  const normalize = text => text.toLocaleLowerCase('vi').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+  const query = normalize(value.trimStart());
+  if (!query.trim() || query.includes('\n')) return null;
+  return choices.find(text => normalize(text).startsWith(query) && normalize(text) !== query) || null;
+}
 export const workplaceName = value => ({ remote: 'Từ xa', hybrid: 'Kết hợp từ xa và văn phòng', onsite: 'Tại văn phòng' }[value] || 'Chưa có thông tin');
 export const number = value => new Intl.NumberFormat('vi-VN').format(value ?? 0);
 export const date = value => value && Number.isFinite(new Date(value).getTime()) ? new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value)) : 'Chưa ghi nhận';

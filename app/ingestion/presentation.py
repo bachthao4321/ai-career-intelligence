@@ -38,6 +38,7 @@ class JobPresentation(BaseModel):
     title_vi: str | None = None
     translation_model: str | None = None
     application_deadline: date | None = None
+    source_excerpt: str = ""
 
 
 def translation_signature(settings: Settings) -> str:
@@ -56,6 +57,8 @@ def country_metadata(source: str, raw: dict[str, Any]) -> tuple[list[str], str]:
         address = raw.get("workplace_address")
         if isinstance(address, dict):
             candidates.append(address.get("country"))
+    elif source == "employer_ats":
+        candidates.append(raw.get("verified_country"))
     elif source in {"itviec", "topcv"}:
         posting = raw.get("posting")
         places = posting.get("jobLocation", []) if isinstance(posting, dict) else []
@@ -93,6 +96,8 @@ def application_deadline(source: str, raw: dict[str, Any]) -> date | None:
     value: Any = None
     if source == "jobtech":
         value = raw.get("application_deadline")
+    elif source == "employer_ats":
+        value = raw.get("application_deadline")
     elif source in {"itviec", "topcv"}:
         posting = raw.get("posting")
         if isinstance(posting, dict):
@@ -125,5 +130,6 @@ async def presentations(
             title_vi=translated[1] if translated else None,
             translation_model="human-reviewed" if translated else None,
             application_deadline=application_deadline(job.source, job.raw_payload),
+            source_excerpt=job.description[:240],
         )
     return result
