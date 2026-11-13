@@ -5,6 +5,9 @@ export function questionCompletion(value, choices) {
   if (!query.trim() || query.includes('\n')) return null;
   return choices.find(text => normalize(text).startsWith(query) && normalize(text) !== query) || null;
 }
+export const requirementName = value => ({ required: 'bắt buộc', preferred: 'ưu tiên', negated: 'không cần' }[value] || '');
+export const requirementTone = value => ({ required: 'amber', preferred: '', negated: 'muted' }[value] || '');
+export function skillLabel(name, requirement) { const label = requirementName(requirement); return label ? `${name} · ${label}` : name; }
 export const workplaceName = value => ({ remote: 'Từ xa', hybrid: 'Kết hợp từ xa và văn phòng', onsite: 'Tại văn phòng' }[value] || 'Chưa có thông tin');
 export const number = value => new Intl.NumberFormat('vi-VN').format(value ?? 0);
 export const date = value => value && Number.isFinite(new Date(value).getTime()) ? new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value)) : 'Chưa ghi nhận';

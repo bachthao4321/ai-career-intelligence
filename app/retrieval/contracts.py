@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.ingestion.contracts import EvidenceField, json_hash
 from app.ingestion.policies import local_research_only
+from app.ingestion.requirements import Requirement
 
 Slug = Annotated[str, Field(pattern=r"^[a-z0-9_-]+$", min_length=1, max_length=100)]
 
@@ -34,6 +35,8 @@ class SourceSkillEvidence(BaseModel):
     start: int
     end: int
     text: str
+    requirement: Requirement = "unspecified"
+    requirement_cue: str | None = None
 
 
 @dataclass(frozen=True)

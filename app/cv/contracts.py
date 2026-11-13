@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.ingestion.requirements import Requirement
 from app.retrieval.contracts import SearchFilters, SourceSkillEvidence
 
 MAX_PDF_BYTES = 2 * 1024 * 1024
@@ -72,6 +73,7 @@ class MatchedSkill(BaseModel):
 
 class NotSeenSkill(BaseModel):
     slug: str
+    requirement: Requirement = "unspecified"
     job_evidence: SourceSkillEvidence
 
 
@@ -91,12 +93,13 @@ class CVJobMatch(BaseModel):
     matched_skills: list[MatchedSkill]
     skills_not_seen_in_cv: list[NotSeenSkill]
     cv_skills_not_mentioned_in_job: list[str]
+    negated_job_skills: list[str] = Field(default_factory=list)
 
 
 class MatchReport(BaseModel):
     cv_id: uuid.UUID
     expires_at: datetime
-    algorithm: str = "cv-bm25-coverage-v1"
+    algorithm: str = "cv-bm25-weighted-coverage-v2"
     eligible_listings: int
     unique_documents: int
     candidate_documents: int

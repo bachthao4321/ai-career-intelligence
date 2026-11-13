@@ -80,6 +80,8 @@ class SkillEvidence(BaseModel):
     end_offset: int
     confidence: float
     method: str
+    requirement: str = "unspecified"
+    requirement_cue: str | None = None
 
 
 class JobDetail(JobSummary):
@@ -89,7 +91,8 @@ class JobDetail(JobSummary):
     content_hash: str
     skills: list[SkillEvidence]
     note: str = (
-        "Skills are literal mentions, not proof of required proficiency. "
+        "Skills are literal mentions, not proof of required proficiency. Requirement levels "
+        "come from nearby wording or section headings; 'unspecified' means no explicit cue. "
         "Attribution: see source and source_url."
     )
 

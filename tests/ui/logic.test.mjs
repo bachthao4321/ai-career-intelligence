@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments } from '../../app/web/static/logic.mjs';
+import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName } from '../../app/web/static/logic.mjs';
 
 test('source links allow only credential-free HTTP(S), including hostile schemes', () => {
   for (const url of ['javascript:alert(1)', 'data:text/html,<script>x</script>', 'file:///etc/passwd', '//evil.test', 'https://user:secret@example.com', 'not a url']) assert.equal(safeUrl(url), null);
@@ -65,4 +65,11 @@ test('question completion matches prefixes without requiring Vietnamese accents'
   assert.equal(questionCompletion(options[0], options), null);
   assert.equal(questionCompletion('không liên quan', options), null);
   assert.equal(questionCompletion('Có\nbao', options), null);
+});
+
+test('requirement labels only annotate explicit levels', () => {
+  assert.equal(skillLabel('Python', 'required'), 'Python · bắt buộc');
+  assert.equal(skillLabel('React', 'preferred'), 'React · ưu tiên');
+  assert.equal(skillLabel('Docker', 'unspecified'), 'Docker');
+  assert.equal(requirementName('anything-else'), '');
 });

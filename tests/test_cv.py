@@ -153,6 +153,40 @@ def test_matching_hand_scores_gap_evidence_and_content_dedup() -> None:
     assert result.skills_not_seen_in_cv[0].job_evidence.text == "Docker"
 
 
+def test_requirement_levels_weight_coverage_order_gaps_and_drop_negated() -> None:
+    profile = extract_skills([CVPage(number=1, text="Python project experience")], [])
+
+    def evidence(slug: str, start: int, requirement: str) -> SourceSkillEvidence:
+        return SourceSkillEvidence(
+            slug=slug,
+            source_field="description",
+            start=start,
+            end=start + 1,
+            text=slug,
+            requirement=requirement,  # type: ignore[arg-type]
+        )
+
+    items = (
+        evidence("python", 0, "required"),
+        evidence("react", 1, "preferred"),
+        evidence("docker", 2, "required"),
+        evidence("java", 3, "negated"),
+    )
+    doc = replace(
+        document("Python", identity=1),
+        skills=tuple(item.slug for item in items),
+        skill_evidence=items,
+    )
+    result = match_jobs(uuid.uuid4(), datetime.now(UTC), profile, MatchRequest(), [doc]).items[0]
+    # python (1.0) of python + docker (1.0 each) + react (0.5); java is not a job skill.
+    assert result.skill_coverage == pytest.approx(1.0 / 2.5)
+    assert [(s.slug, s.requirement) for s in result.skills_not_seen_in_cv] == [
+        ("docker", "required"),
+        ("react", "preferred"),
+    ]
+    assert result.negated_job_skills == ["java"]
+
+
 def test_unknown_skills_empty_pool_and_no_evidence_are_not_false_gaps() -> None:
     profile = extract_skills([CVPage(number=1, text="Unrecognized technology fixture")], [])
     doc = document("Python project")

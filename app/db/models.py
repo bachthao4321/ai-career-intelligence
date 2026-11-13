@@ -118,6 +118,10 @@ class JobSkill(Base):
             "start_offset >= 0 AND end_offset > start_offset", name="ck_job_skills_offsets"
         ),
         CheckConstraint("confidence >= 0 AND confidence <= 1", name="ck_job_skills_confidence"),
+        CheckConstraint(
+            "requirement IN ('required', 'preferred', 'negated', 'unspecified')",
+            name="ck_job_skills_requirement",
+        ),
     )
     job_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("jobs.id", ondelete="CASCADE"), primary_key=True
@@ -133,6 +137,8 @@ class JobSkill(Base):
     end_offset: Mapped[int] = mapped_column(Integer)
     confidence: Mapped[float] = mapped_column(Float)
     method: Mapped[str] = mapped_column(String(20))
+    requirement: Mapped[str] = mapped_column(String(12), server_default="unspecified")
+    requirement_cue: Mapped[str | None] = mapped_column(String(80))
 
 
 class AliasCandidate(Base):

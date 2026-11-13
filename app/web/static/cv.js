@@ -1,5 +1,5 @@
-import { $, api, el, icon, tag, jobHeading, link, skillName, emptyState, loading, notice, busy, warningText, openDialog, toast } from './ui.js?v=20261111-24';
-import { savedCredential, time, date, number } from './logic.mjs?v=20261111-24';
+import { $, api, el, icon, tag, jobHeading, link, skillName, emptyState, loading, notice, busy, warningText, openDialog, toast } from './ui.js?v=20261113-1';
+import { savedCredential, time, date, number, skillLabel } from './logic.mjs?v=20261113-1';
 
 const SESSION_KEY = 'careerlens.cv.v1';
 export function initCV(context) {
@@ -49,7 +49,7 @@ export function initCV(context) {
     const coverage = el('div', { class: 'coverage' });
     coverage.append(el('div', { class: 'coverage-label' }, el('span', { text: total ? 'Kỹ năng trùng với CV' : 'Tin chưa có kỹ năng được nhận diện' }), total ? el('strong', { text: `${shared} / ${total}` }) : null));
     if (total) { const fill = el('span', { class: 'bar-fill' }); fill.style.width = `${shared / total * 100}%`; coverage.append(el('div', { class: 'bar-track', 'aria-hidden': 'true' }, fill)); }
-    const compare = el('div', { class: 'comparison-grid' }, el('div', {}, el('h4', { text: 'Có trong CV và tin tuyển dụng' }), ...(job.matched_skills.length ? job.matched_skills.map(skill => tag(skillName(skill.slug, context.overview()), 'green')) : [el('span', { class: 'muted small', text: 'Chưa tìm thấy' })])), el('div', {}, el('h4', { text: 'Chưa thấy trong CV' }), ...(job.skills_not_seen_in_cv.length ? job.skills_not_seen_in_cv.map(skill => tag(skillName(skill.slug, context.overview()), 'amber')) : [el('span', { class: 'muted small', text: 'Không có trong phần đã nhận diện' })])));
+    const compare = el('div', { class: 'comparison-grid' }, el('div', {}, el('h4', { text: 'Có trong CV và tin tuyển dụng' }), ...(job.matched_skills.length ? job.matched_skills.map(skill => tag(skillName(skill.slug, context.overview()), 'green')) : [el('span', { class: 'muted small', text: 'Chưa tìm thấy' })])), el('div', {}, el('h4', { text: 'Chưa thấy trong CV' }), ...(job.skills_not_seen_in_cv.length ? job.skills_not_seen_in_cv.map(skill => tag(skillLabel(skillName(skill.slug, context.overview()), skill.requirement), skill.requirement === 'required' ? 'amber' : '')) : [el('span', { class: 'muted small', text: 'Không có trong phần đã nhận diện' })])));
     const details = el('details', { class: 'comparison-detail' }, el('summary', {}, 'Xem đoạn trích đối chiếu', icon('chevron-down')));
     for (const skill of job.matched_skills) details.append(el('h4', { text: skillName(skill.slug, context.overview()) }), el('blockquote', { class: 'evidence-block', text: `CV · ${skill.cv_evidence.map(span => `trang ${span.page}: “${span.text}”`).join('; ')}\nTin gốc · “${skill.job_evidence.text}”` }));
     if (job.skills_not_seen_in_cv.length) details.append(el('h4', { text: 'Tin tuyển dụng có nhắc, CV chưa đề cập' }), ...job.skills_not_seen_in_cv.map(skill => el('blockquote', { class: 'evidence-block', text: `${skillName(skill.slug, context.overview())} · Tin gốc: “${skill.job_evidence.text}”` })));

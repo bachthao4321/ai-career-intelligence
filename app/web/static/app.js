@@ -1,8 +1,8 @@
-import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261111-24';
-import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText } from './logic.mjs?v=20261111-24';
-import { initJobs } from './jobs.js?v=20261111-24';
-import { initAnalytics } from './analytics.js?v=20261111-24';
-import { initCV } from './cv.js?v=20261111-24';
+import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261113-1';
+import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261113-1';
+import { initJobs } from './jobs.js?v=20261113-1';
+import { initAnalytics } from './analytics.js?v=20261113-1';
+import { initCV } from './cv.js?v=20261113-1';
 
 hydrateIcons();
 // Scroll offsets follow the actual sticky navigation height, including text scaling.
@@ -146,7 +146,8 @@ async function openJob(id) {
     const heading = el('div', { class: 'detail-heading' }, avatar(job.company), el('div', { class: 'detail-heading-copy' }, el('p', { class: 'company-name', text: job.company || 'Chưa có tên công ty' }), title), actions);
     const metadata = el('div', { class: 'detail-meta' }, country, meta(job.location || 'Chưa có địa điểm', 'pin'), meta(workplaceName(job.workplace_type), 'briefcase'), deadline, sourceBadge(job), jobPresentation(job, null, deadline, country));
     const sourceLink = link(job.source_url, 'Xem tin tuyển dụng gốc', 'job-source-link');
-    const tags = el('div', { class: 'job-tags' }, job.skills.map(skill => tag(skillName(skill.skill_slug, overview))));
+    const order = { required: 0, unspecified: 1, preferred: 2, negated: 3 };
+    const tags = el('div', { class: 'job-tags' }, [...job.skills].sort((a, b) => (order[a.requirement] ?? 1) - (order[b.requirement] ?? 1)).map(skill => { const item = tag(skillLabel(skillName(skill.skill_slug, overview), skill.requirement), requirementTone(skill.requirement)); if (skill.requirement_cue) item.title = `Dựa trên: “${skill.requirement_cue}”`; return item; }));
     $('job-detail').replaceChildren(heading, metadata, sourceLink, tags, description, el('div', { class: 'detail-footer' }, el('p', { text: `Cập nhật ${date(job.fetched_at)} · ${job.published_at ? `Đăng ${date(job.published_at)}` : 'Chưa có ngày đăng'}` })));
   } catch (error) { if (error.name !== 'AbortError' && detailController === current) $('job-detail').replaceChildren(emptyState('Chưa thể mở công việc.', error.message, 'info')); }
 }

@@ -9,6 +9,7 @@ from app.db.models import Job, JobSkill
 from app.db.visibility import visible_jobs
 from app.ingestion.contracts import EvidenceField
 from app.ingestion.extraction import inside_link_or_email
+from app.ingestion.requirements import as_requirement
 from app.retrieval.contracts import SearchDocument, SearchFilters, SourceSkillEvidence
 
 
@@ -93,6 +94,8 @@ async def load_documents(
                         start=row.start_offset,
                         end=row.end_offset,
                         text=row.evidence,
+                        requirement=as_requirement(row.requirement),
+                        requirement_cue=row.requirement_cue,
                     )
                 )
         documents = []

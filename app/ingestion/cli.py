@@ -14,6 +14,7 @@ from app.core.config import Settings
 from app.db.models import AliasCandidate
 from app.db.session import create_engine
 from app.ingestion.batching import BatchExtractor
+from app.ingestion.enrichment import enrich_existing
 from app.ingestion.itviec import fetch_itviec
 from app.ingestion.llm import DeepSeekExtractor
 from app.ingestion.reporting import build_report
@@ -42,6 +43,7 @@ def parser() -> argparse.ArgumentParser:
     report.add_argument("--output", type=Path)
     report.add_argument("--sample-size", type=int, default=10)
     commands.add_parser("aliases")
+    commands.add_parser("enrich", help="Recompute requirement levels and job facts for stored jobs")
     review = commands.add_parser("review-alias")
     review.add_argument("candidate_id", type=uuid.UUID)
     review.add_argument("--decision", choices=["approve", "reject"], required=True)
@@ -103,6 +105,8 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
                     "output": str(args.output)
                 }
             return report
+        if args.command == "enrich":
+            return await enrich_existing(engine)
         if args.command == "aliases":
             async with async_sessionmaker(engine)() as session:
                 candidates = (

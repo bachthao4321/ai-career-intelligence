@@ -9,9 +9,21 @@ from app.cv.contracts import (
     MatchRequest,
     NotSeenSkill,
 )
-from app.retrieval.contracts import SearchDocument
+from app.retrieval.contracts import SearchDocument, SourceSkillEvidence
 from app.retrieval.documents import deduplicate
 from app.retrieval.lexical import bm25
+
+# Explicitly required job skills count fully; "nice to have" counts half. Negated
+# mentions ("no Java needed") are not job skills and never become gaps.
+REQUIREMENT_WEIGHTS = {"required": 1.0, "unspecified": 0.75, "preferred": 0.5}
+REQUIREMENT_ORDER = {"required": 0, "unspecified": 1, "preferred": 2}
+
+
+def weighted_coverage(job_skills: dict[str, SourceSkillEvidence], shared: set[str]) -> float | None:
+    total = sum(REQUIREMENT_WEIGHTS[item.requirement] for item in job_skills.values())
+    if not total:
+        return None
+    return sum(REQUIREMENT_WEIGHTS[job_skills[slug].requirement] for slug in shared) / total
 
 
 def match_jobs(
@@ -27,13 +39,19 @@ def match_jobs(
     query = " ".join([request.target_role or "", *sorted(cv_skills)])[:500]
     lexical = bm25(query, docs, limit=50) if query.strip() else []
     lexical_scores = {hit.job_id: hit.score for hit in lexical}
-    evidence = {doc.job_id: {item.slug: item for item in doc.skill_evidence} for doc in docs}
+    evidence = {
+        doc.job_id: {
+            item.slug: item for item in doc.skill_evidence if item.requirement != "negated"
+        }
+        for doc in docs
+    }
+    negated = {
+        doc.job_id: {item.slug for item in doc.skill_evidence if item.requirement == "negated"}
+        for doc in docs
+    }
     overlaps = {doc.job_id: set(evidence[doc.job_id]) & cv_skills.keys() for doc in docs}
     coverage = {
-        doc.job_id: (
-            len(overlaps[doc.job_id]) / len(evidence[doc.job_id]) if evidence[doc.job_id] else None
-        )
-        for doc in docs
+        doc.job_id: weighted_coverage(evidence[doc.job_id], overlaps[doc.job_id]) for doc in docs
     }
     skill_candidates = sorted(
         (doc for doc in docs if overlaps[doc.job_id]),
@@ -82,9 +100,20 @@ def match_jobs(
                     for slug in sorted(shared)
                 ],
                 skills_not_seen_in_cv=[
-                    NotSeenSkill(slug=slug, job_evidence=job_skills[slug])
-                    for slug in sorted(job_skills.keys() - cv_skills.keys())
+                    NotSeenSkill(
+                        slug=slug,
+                        requirement=job_skills[slug].requirement,
+                        job_evidence=job_skills[slug],
+                    )
+                    for slug in sorted(
+                        job_skills.keys() - cv_skills.keys(),
+                        key=lambda value: (
+                            REQUIREMENT_ORDER[job_skills[value].requirement],
+                            value,
+                        ),
+                    )
                 ],
+                negated_job_skills=sorted(negated[doc.job_id]),
                 cv_skills_not_mentioned_in_job=sorted(cv_skills.keys() - job_skills.keys()),
             )
         )
@@ -93,10 +122,11 @@ def match_jobs(
         "scores_are_uncalibrated_not_hiring_probabilities",
         "skills_not_seen_in_cv_are_not_proven_missing_or_required",
         "only_curated_literal_skills_compared_no_seniority_or_experience_inference",
+        "requirement_levels_from_wording_cues_unspecified_means_no_cue",
     ]
     if not profile.skills:
         warnings.append("no_cv_skills_target_role_only_or_no_matches")
-    if any(set(doc.skills) != set(evidence[doc.job_id]) for doc in docs):
+    if any(set(doc.skills) != {item.slug for item in doc.skill_evidence} for doc in docs):
         warnings.append("some_job_skill_evidence_invalid_excluded_from_comparison")
     if any(doc.truncated for doc in docs):
         warnings.append("bm25_document_text_limited_to_20000_characters")

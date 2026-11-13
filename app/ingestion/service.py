@@ -28,6 +28,7 @@ from app.ingestion.extraction import (
 )
 from app.ingestion.llm import DeepSeekExtractor, ExtractionError, reserve_daily_call
 from app.ingestion.policies import local_research_only
+from app.ingestion.requirements import classify_requirement
 from app.llm.runtime import CallBudget
 
 
@@ -349,6 +350,12 @@ async def _replace_skills(
 ) -> None:
     await session.execute(delete(JobSkill).where(JobSkill.job_id == job_id))
     for mention in mentions:
+        level = classify_requirement(
+            mention.source_field,
+            record.evidence_text(mention.source_field),
+            mention.start,
+            mention.end,
+        )
         session.add(
             JobSkill(
                 job_id=job_id,
@@ -361,6 +368,8 @@ async def _replace_skills(
                 end_offset=mention.end,
                 confidence=mention.confidence,
                 method=methods[mention.skill],
+                requirement=level.requirement,
+                requirement_cue=level.cue,
             )
         )
 

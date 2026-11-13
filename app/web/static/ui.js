@@ -1,4 +1,4 @@
-import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261111-24';
+import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261113-1';
 
 const paths = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',
@@ -191,6 +191,7 @@ const warnings = {
   pdf_reading_order_may_differ_from_visual_layout: 'Thứ tự văn bản có thể khác bố cục PDF. Hãy kiểm tra phần văn bản đã đọc.',
   no_curated_skills_found_add_target_role_or_review_cv_text: 'Chưa tìm thấy kỹ năng trong CV. Hãy kiểm tra văn bản đã đọc hoặc nhập vị trí muốn tìm.',
   no_cv_skills_target_role_only_or_no_matches: 'CV chưa có kỹ năng được nhận diện; kết quả chỉ dựa vào vị trí bạn nhập.',
+  requirement_levels_from_wording_cues_unspecified_means_no_cue: 'Mức “bắt buộc/ưu tiên” dựa trên câu chữ trong tin; kỹ năng không ghi mức nghĩa là tin không nói rõ.',
   some_job_skill_evidence_invalid_excluded_from_comparison: 'Một số kỹ năng không có đoạn trích xác thực nên đã được bỏ qua khi so sánh.',
   row_limit_reached_more_rows_may_exist: 'Đã chạm giới hạn số dòng trả về; có thể còn dữ liệu khác.', long_values_truncated: 'Một số giá trị dài được rút gọn để hiển thị.',
 };
