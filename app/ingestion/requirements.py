@@ -44,7 +44,7 @@ _OTHER_HEAD = re.compile(
     _FLAGS,
 )
 _PREFERRED_INLINE = re.compile(
-    r"\b(?:not essential|not a must|not mandatory|inte ett krav|inget krav|ej krav|"
+    r"\b(?:helst|gärna|not essential|not a must|not mandatory|inte ett krav|inget krav|ej krav|"
     r"nice[- ]to[- ]have|good to have|(?:is |are )?an? (?:big |huge )?plus|"
     r"an advantage|advantageous|beneficial|preferred|preferably|bonus|desirable|ideally|"
     r"meriterande|meriterar|en fördel|önskvärt|ưu tiên|là lợi thế|điểm cộng|là một lợi thế)\b",

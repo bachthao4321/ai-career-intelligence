@@ -3,6 +3,7 @@ from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     Date,
     DateTime,
@@ -139,6 +140,42 @@ class JobSkill(Base):
     method: Mapped[str] = mapped_column(String(20))
     requirement: Mapped[str] = mapped_column(String(12), server_default="unspecified")
     requirement_cue: Mapped[str | None] = mapped_column(String(80))
+
+
+class JobFact(Base):
+    __tablename__ = "job_facts"
+    __table_args__ = (
+        CheckConstraint(
+            "seniority IN ('intern', 'junior', 'mid', 'senior', 'lead', 'unknown')",
+            name="ck_job_facts_seniority",
+        ),
+        CheckConstraint(
+            "experience_years_min IS NULL OR experience_years_min BETWEEN 0 AND 30",
+            name="ck_job_facts_experience",
+        ),
+        CheckConstraint(
+            "salary_min IS NULL OR (salary_min > 0 AND salary_max >= salary_min "
+            "AND salary_currency IS NOT NULL)",
+            name="ck_job_facts_salary",
+        ),
+        Index("ix_job_facts_deadline", "application_deadline"),
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), primary_key=True
+    )
+    content_hash: Mapped[str] = mapped_column(String(64))
+    version: Mapped[str] = mapped_column(String(40))
+    seniority: Mapped[str] = mapped_column(String(10), server_default="unknown")
+    seniority_evidence: Mapped[str | None] = mapped_column(String(80))
+    experience_years_min: Mapped[int | None] = mapped_column(Integer)
+    experience_evidence: Mapped[str | None] = mapped_column(String(160))
+    salary_min: Mapped[int | None] = mapped_column(BigInteger)
+    salary_max: Mapped[int | None] = mapped_column(BigInteger)
+    salary_currency: Mapped[str | None] = mapped_column(String(3))
+    salary_period: Mapped[str | None] = mapped_column(String(5))
+    salary_evidence: Mapped[str | None] = mapped_column(String(200))
+    application_deadline: Mapped[date | None] = mapped_column(Date)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AliasCandidate(Base):

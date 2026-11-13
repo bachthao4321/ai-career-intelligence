@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal, Self, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.db.models import Job, JobSkill
+from app.db.models import Job, JobFact, JobSkill
 from app.db.visibility import visible_jobs
 from app.ingestion.description_translation import (
     DescriptionTranslator,
@@ -84,15 +84,32 @@ class SkillEvidence(BaseModel):
     requirement_cue: str | None = None
 
 
+class JobFactsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    version: str
+    seniority: str = "unknown"
+    seniority_evidence: str | None = None
+    experience_years_min: int | None = None
+    experience_evidence: str | None = None
+    salary_min: int | None = None
+    salary_max: int | None = None
+    salary_currency: str | None = None
+    salary_period: str | None = None
+    salary_evidence: str | None = None
+    application_deadline: date | None = None
+
+
 class JobDetail(JobSummary):
     description: str
     description_language: Language
     structured_skills: list[str]
     content_hash: str
     skills: list[SkillEvidence]
+    facts: JobFactsOut | None = None
     note: str = (
         "Skills are literal mentions, not proof of required proficiency. Requirement levels "
         "come from nearby wording or section headings; 'unspecified' means no explicit cue. "
+        "Facts are copied from explicit phrases (see *_evidence); empty means not stated. "
         "Attribution: see source and source_url."
     )
 
@@ -149,8 +166,12 @@ async def job_detail(
             .order_by(JobSkill.skill_slug)
         )
     ).all()
+    facts = await session.scalar(
+        select(JobFact).where(JobFact.job_id == job_id, JobFact.content_hash == job.content_hash)
+    )
     return JobDetail(
         **JobSummary.model_validate(job).model_dump(),
+        facts=JobFactsOut.model_validate(facts) if facts else None,
         description=job.description,
         description_language=detect_language(job.description, job.language),
         structured_skills=job.structured_skills,

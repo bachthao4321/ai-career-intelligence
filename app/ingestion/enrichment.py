@@ -9,14 +9,16 @@ from typing import cast
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
-from app.db.models import Job, JobSkill
+from app.db.models import Job, JobFact, JobSkill
 from app.ingestion.contracts import EvidenceField
+from app.ingestion.facts import FACTS_VERSION, JobFacts, facts_from
 from app.ingestion.requirements import REQUIREMENT_VERSION, classify_requirement
+from app.ingestion.service import upsert_facts
 
 
 async def enrich_existing(engine: AsyncEngine, *, batch_size: int = 200) -> dict[str, object]:
     sessions = async_sessionmaker(engine, expire_on_commit=False)
-    counts = {"jobs": 0, "skills": 0, "changed_skills": 0}
+    counts = {"jobs": 0, "skills": 0, "changed_skills": 0, "changed_facts": 0}
     async with sessions() as session:
         job_ids = (await session.scalars(select(Job.id).order_by(Job.id))).all()
     for offset in range(0, len(job_ids), batch_size):
@@ -26,8 +28,23 @@ async def enrich_existing(engine: AsyncEngine, *, batch_size: int = 200) -> dict
                     select(Job).where(Job.id.in_(job_ids[offset : offset + batch_size]))
                 )
             ).all()
+            stored = {
+                row.job_id: row
+                for row in await session.scalars(
+                    select(JobFact).where(JobFact.job_id.in_([job.id for job in jobs]))
+                )
+            }
             for job in jobs:
                 counts["jobs"] += 1
+                facts = facts_from(job.title, job.description, job.source, job.raw_payload)
+                current = stored.get(job.id)
+                if (
+                    current is None
+                    or current.content_hash != job.content_hash
+                    or (JobFacts.model_validate(current, from_attributes=True) != facts)
+                ):
+                    counts["changed_facts"] += 1
+                    await upsert_facts(session, job.id, job.content_hash, facts)
                 texts = {
                     "title": job.title,
                     "description": job.description,
@@ -61,4 +78,8 @@ async def enrich_existing(engine: AsyncEngine, *, batch_size: int = 200) -> dict
                             )
                             .values(requirement=level.requirement, requirement_cue=level.cue)
                         )
-    return {**counts, "requirement_version": REQUIREMENT_VERSION}
+    return {
+        **counts,
+        "requirement_version": REQUIREMENT_VERSION,
+        "facts_version": FACTS_VERSION,
+    }

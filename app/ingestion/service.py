@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -13,6 +13,7 @@ from app.db.models import (
     AliasCandidate,
     ExtractionRun,
     Job,
+    JobFact,
     JobSkill,
     JobSnapshot,
     Skill,
@@ -26,6 +27,7 @@ from app.ingestion.extraction import (
     deterministic_extract,
     validate_mentions,
 )
+from app.ingestion.facts import JobFacts, extract_facts
 from app.ingestion.llm import DeepSeekExtractor, ExtractionError, reserve_daily_call
 from app.ingestion.policies import local_research_only
 from app.ingestion.requirements import classify_requirement
@@ -215,6 +217,7 @@ async def import_records(
                 )
                 .on_conflict_do_nothing(constraint="uq_job_snapshots_job_raw_hash")
             )
+            await upsert_facts(session, job.id, record.content_hash, extract_facts(record))
             cached = (
                 await session.execute(
                     select(ExtractionRun).where(
@@ -338,6 +341,16 @@ async def import_records(
             report.rejected_mentions += len(grounded.rejected)
     report.elapsed_ms = round((time.perf_counter() - started) * 1000)
     return report
+
+
+async def upsert_facts(
+    session: AsyncSession, job_id: uuid.UUID, content_hash: str, facts: JobFacts
+) -> None:
+    values = {**facts.model_dump(), "content_hash": content_hash, "updated_at": func.now()}
+    statement = insert(JobFact).values(job_id=job_id, **values)
+    await session.execute(
+        statement.on_conflict_do_update(index_elements=[JobFact.job_id], set_=values)
+    )
 
 
 async def _replace_skills(
