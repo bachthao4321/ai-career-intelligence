@@ -6,7 +6,7 @@ Nền tảng hỗ trợ tìm việc IT bằng ngôn ngữ tự nhiên, phân tí
 
 M0 đã hoàn thành. M1 đã có importer idempotent, lịch sử nguồn, curated skill catalog, extraction kèm evidence, alias review, quota DeepSeek và API đọc jobs. Snapshot local ngày 2026-11-10 có **838 tin / 810 nhóm nội dung**: 821 JobTech, 10 ITviec nghiên cứu cá nhân local và 7 Remotive. Xem [lần bổ sung dữ liệu](docs/DATA_REFRESH.md), [baseline M1](docs/M1_VALIDATION.md) và [nguồn Việt Nam](docs/VIETNAM_SOURCES.md). Đây là dữ liệu local không nằm trong Git; checkout mới không tự có các tin này.
 
-M2 đã có search BM25/dense/hybrid, embeddings ONNX đa ngôn ngữ chạy local, Qdrant indexing incremental/resumable và pilot 60 query. **BM25 là mặc định**: hybrid chưa vượt baseline trên phần test của pilot nhãn silver; xem [kết quả M2](docs/M2_VALIDATION.md).
+M2 đã có search BM25/dense/hybrid, embeddings ONNX đa ngôn ngữ chạy local, Qdrant indexing incremental/resumable và pilot 60 query. **Hybrid là mặc định** (RRF, trọng số BM25 2 : dense 1) từ lần đánh giá lại ngày 2026-11-14 trên corpus JobTech hiện tại; tự quay về BM25 khi vector index chưa sẵn sàng. Nhãn vẫn là silver, chưa có người duyệt; xem [kết quả M2](docs/M2_VALIDATION.md#re-evaluation--2026-11-14).
 
 M3 đã có `/ask`, router LangGraph, các mẫu thống kê offline, adapter chat tùy chọn, AST SQL allowlist và PostgreSQL login riêng chỉ đọc scoped views. Xem [hướng dẫn M3](docs/ANALYTICS.md) và [kiểm chứng M3](docs/M3_VALIDATION.md). Đã nối Qwen LAN và chạy smoke thực tế cho routing/text-to-SQL; đây chưa phải benchmark held-out. Xem [kiểm chứng Qwen](docs/QWEN_LAN_VALIDATION.md).
 

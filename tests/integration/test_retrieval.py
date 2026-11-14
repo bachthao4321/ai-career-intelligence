@@ -221,7 +221,10 @@ async def test_api_search_returns_components_and_rejects_unsupported_filters(
             assert body["items"][0]["bm25_score"] is not None
             assert body["items"][0]["dense_score"] is not None
             assert "raw_payload" not in response.text
-            baseline = client.post("/search", json={"query": "Python"})
+            default = client.post("/search", json={"query": "Python"})
+            assert default.json()["effective_mode"] == "hybrid"
+            assert default.json()["items"][0]["dense_score"] is not None
+            baseline = client.post("/search", json={"query": "Python", "mode": "bm25"})
             assert baseline.json()["effective_mode"] == "bm25"
             assert baseline.json()["items"][0]["dense_score"] is None
             assert (

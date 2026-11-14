@@ -18,7 +18,7 @@ from app.security.sql import UnsafeSQL
 class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
     question: str = Field(min_length=2, max_length=500)
-    search_mode: Literal["bm25", "dense", "hybrid"] = "bm25"
+    search_mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
     top_k: int = Field(default=5, ge=1, le=20)
 
 

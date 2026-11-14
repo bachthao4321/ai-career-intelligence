@@ -34,7 +34,7 @@ def parser() -> argparse.ArgumentParser:
     index.add_argument("--max-jobs", type=int)
     search = commands.add_parser("search")
     search.add_argument("query")
-    search.add_argument("--mode", choices=["bm25", "dense", "hybrid"], default="bm25")
+    search.add_argument("--mode", choices=["bm25", "dense", "hybrid"], default="hybrid")
     search.add_argument("--source")
     search.add_argument("--location")
     search.add_argument("--top-k", type=int, default=5)

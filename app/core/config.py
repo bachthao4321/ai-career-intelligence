@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     vector_timeout_seconds: float = Field(default=30, ge=1, le=60)
     search_corpus_limit: int = Field(default=5000, ge=10, le=10_000)
     rrf_k: int = Field(default=60, ge=1, le=200)
-    rrf_bm25_weight: float = Field(default=0.5, gt=0, le=4)
+    rrf_bm25_weight: float = Field(default=2, gt=0, le=8)
     rrf_dense_weight: float = Field(default=1, gt=0, le=4)
     analytics_database_url: SecretStr | None = None
     analytics_schema: str = Field(default="public", pattern=r"^[a-z][a-z0-9_]{0,62}$")
