@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 
-from app.ingestion.contracts import JobRecord, normalize_text
+from app.schemas.ingestion import JobRecord, normalize_text
 
 REMOTIVE_ENDPOINT = "https://remotive.com/api/remote-jobs"
 REMOTIVE_TERMS = "https://github.com/remotive-com/remote-jobs-api#terms-of-services"

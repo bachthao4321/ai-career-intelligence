@@ -3,9 +3,9 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from app.ingestion.contracts import ExtractionOutput, JobRecord, SkillMention
 from app.ingestion.extraction import SkillCatalog, deterministic_extract, validate_mentions
 from app.ingestion.sources import html_to_text
+from app.schemas.ingestion import ExtractionOutput, JobRecord, SkillMention
 
 
 def mention(record: JobRecord, evidence: str, skill: str, confidence: float = 0.99) -> SkillMention:

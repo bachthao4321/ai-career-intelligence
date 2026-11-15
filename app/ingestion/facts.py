@@ -11,9 +11,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from app.ingestion.contracts import JobRecord
-from app.ingestion.presentation import application_deadline
 from app.ingestion.requirements import classify_requirement
+from app.schemas.ingestion import JobRecord
+from app.services.translation.presentation import application_deadline
 
 FACTS_VERSION = "facts-v1"
 Seniority = Literal["intern", "junior", "mid", "senior", "lead", "unknown"]

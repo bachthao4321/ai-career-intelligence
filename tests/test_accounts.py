@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.api.auth import Credentials
-from app.security.passwords import hash_password, verify_password
+from app.api.routes.accounts import Credentials
+from app.core.security.passwords import hash_password, verify_password
 
 
 def test_password_hash_round_trip_uses_unique_salts() -> None:

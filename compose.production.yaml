@@ -65,7 +65,7 @@ services:
       postgres: {condition: service_healthy}
   analytics-role:
     <<: *app
-    command: [python, -m, app.agents.cli, provision, --scope, public, --role, career_analytics_public]
+    command: [python, -m, app.cli.ask, provision, --scope, public, --role, career_analytics_public]
     restart: "no"
     depends_on:
       migrate: {condition: service_completed_successfully}

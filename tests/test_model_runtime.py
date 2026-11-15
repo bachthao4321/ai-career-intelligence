@@ -9,11 +9,17 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.config import Settings
 from app.ingestion.batching import BatchExtractor, record_key
-from app.ingestion.contracts import JobRecord
 from app.ingestion.extraction import SkillCatalog
-from app.llm.runtime import CallBudget, Decision, ModelFailure, ModelRuntime, token_usage
-from app.retrieval.contracts import RankedHit
-from app.retrieval.reranking import Reranker
+from app.integrations.llm.runtime import (
+    CallBudget,
+    Decision,
+    ModelFailure,
+    ModelRuntime,
+    token_usage,
+)
+from app.schemas.ingestion import JobRecord
+from app.schemas.search import RankedHit
+from app.services.search.reranking import Reranker
 from tests.retrieval_helpers import document
 
 

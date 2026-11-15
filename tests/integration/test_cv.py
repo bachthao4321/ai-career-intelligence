@@ -13,12 +13,12 @@ from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import Settings
-from app.cv.contracts import CVError, MatchRequest
-from app.cv.service import CVCapacityReached, CVNotFound, CVService
 from app.db.models import CVDocument, Job, JobSkill
-from app.ingestion.contracts import JobRecord
 from app.ingestion.service import import_records
 from app.main import create_app
+from app.schemas.cv import CVError, MatchRequest
+from app.schemas.ingestion import JobRecord
+from app.services.cv.service import CVCapacityReached, CVNotFound, CVService
 from tests.cv_helpers import pdf_bytes
 
 pytestmark = [
@@ -58,7 +58,7 @@ async def test_api_upload_match_and_delete_with_private_source_isolation(
     cv: Harness, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     no_model = AsyncMock(side_effect=AssertionError("CV must not call chat models"))
-    monkeypatch.setattr("app.agents.planner.ModelPlanner.plan", no_model)
+    monkeypatch.setattr("app.services.ask.planner.ModelPlanner.plan", no_model)
 
     def exercise() -> None:
         with TestClient(create_app(cv.settings)) as client:
@@ -148,7 +148,7 @@ async def test_capacity_is_atomic_across_service_instances_and_expired_rows_free
     await cv.service.cleanup()
     async with cv.engine.begin() as conn:
         await conn.execute(CVDocument.__table__.delete())
-    monkeypatch.setattr("app.cv.service.parse_pdf", AsyncMock(return_value=profile))
+    monkeypatch.setattr("app.services.cv.service.parse_pdf", AsyncMock(return_value=profile))
     config = cv.settings.model_copy(update={"cv_capacity": 1})
     one, two = CVService(cv.engine, config), CVService(cv.engine, config)
     result = await asyncio.gather(

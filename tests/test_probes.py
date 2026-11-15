@@ -4,7 +4,7 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.api.health import DependencyProbes
+from app.api.routes.health import DependencyProbes
 
 
 @pytest.mark.parametrize("status", [200, 503, 401])

@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.health import get_probes
+from app.api.routes.health import get_probes
 from app.core.config import Settings
 from app.main import create_app
 

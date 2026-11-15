@@ -8,9 +8,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
+from app.core.security.demo import reserve_client
 from app.db.models import ClientQuota, Job
 from app.main import create_app
-from app.security.demo import reserve_client
 from tests.cv_helpers import pdf_bytes
 from tests.test_demo_security import basic, secured
 

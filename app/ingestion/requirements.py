@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-from app.ingestion.contracts import EvidenceField
+from app.schemas.ingestion import EvidenceField
 
 Requirement = Literal["required", "preferred", "negated", "unspecified"]
 REQUIREMENTS: tuple[Requirement, ...] = ("required", "preferred", "negated", "unspecified")

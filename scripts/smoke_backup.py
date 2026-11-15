@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.core.config import Settings
 from app.db.models import Job
 from app.db.session import create_engine
-from app.retrieval.indexing import index_documents, namespace
-from app.retrieval.qdrant import QdrantStore
+from app.integrations.qdrant import QdrantStore
+from app.services.search.indexing import index_documents, namespace
 from scripts.operations import ROOT, Compose, backup, restore_drill
 from tests.retrieval_helpers import TestEmbedder
 

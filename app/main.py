@@ -8,29 +8,19 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.agents.analytics import AnalyticsExecutor
-from app.agents.planner import ModelPlanner
-from app.agents.workflow import CareerAgent
-from app.api.admin import router as admin_router
-from app.api.ask import router as ask_router
-from app.api.auth import router as auth_router
-from app.api.auth import saved_router
-from app.api.cv import router as cv_router
-from app.api.health import DependencyProbes, router
-from app.api.jobs import router as jobs_router
-from app.api.platform import router as platform_router
-from app.api.search import router as search_router
+from app.api.routes.accounts import router as auth_router
+from app.api.routes.accounts import saved_router
+from app.api.routes.admin import router as admin_router
+from app.api.routes.ask import router as ask_router
+from app.api.routes.cv import router as cv_router
+from app.api.routes.health import DependencyProbes, router
+from app.api.routes.jobs import router as jobs_router
+from app.api.routes.platform import router as platform_router
+from app.api.routes.search import router as search_router
+from app.api.routes.web import STATIC
+from app.api.routes.web import router as web_router
 from app.core.config import Settings
-from app.cv.service import CVService
-from app.db.session import create_engine
-from app.ingestion.description_translation import DescriptionTranslator
-from app.llm.runtime import ModelRuntime
-from app.retrieval.embeddings import Embedder, LocalMiniLM
-from app.retrieval.indexing import namespace
-from app.retrieval.qdrant import QdrantStore
-from app.retrieval.reranking import Reranker
-from app.retrieval.service import SearchService
-from app.security.demo import (
+from app.core.security.demo import (
     client_hash,
     cookie_name,
     host_allowed,
@@ -40,8 +30,18 @@ from app.security.demo import (
     valid_basic,
     valid_session,
 )
-from app.web.routes import STATIC
-from app.web.routes import router as web_router
+from app.db.session import create_engine
+from app.integrations.embeddings import Embedder, LocalMiniLM
+from app.integrations.llm.runtime import ModelRuntime
+from app.integrations.qdrant import QdrantStore
+from app.services.ask.analytics import AnalyticsExecutor
+from app.services.ask.planner import ModelPlanner
+from app.services.ask.workflow import CareerAgent
+from app.services.cv.service import CVService
+from app.services.search.indexing import namespace
+from app.services.search.reranking import Reranker
+from app.services.search.service import SearchService
+from app.services.translation.descriptions import DescriptionTranslator
 
 
 def create_app(settings: Settings | None = None, *, embedder: Embedder | None = None) -> FastAPI:

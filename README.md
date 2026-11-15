@@ -47,21 +47,21 @@ Checkout mới chưa có tin tuyển dụng nào. Có thể thử bằng dữ li
 uv sync --frozen
 
 # Dữ liệu giả lập
-uv run --frozen python -m app.ingestion.cli import examples/jobs.synthetic.json
+uv run --frozen python -m app.cli.ingest import examples/jobs.synthetic.json
 
 # Dữ liệu thật từ JobTech: fetch in ra đường dẫn snapshot để import
-uv run --frozen python -m app.ingestion.cli fetch jobtech --limit 150
-uv run --frozen python -m app.ingestion.cli import data/raw/jobtech-YYYY-MM-DD.json
+uv run --frozen python -m app.cli.ingest fetch jobtech --limit 150
+uv run --frozen python -m app.cli.ingest import data/raw/jobtech-YYYY-MM-DD.json
 
 # Bổ sung thông tin (seniority, lương...) cho các tin đã nhập trước đó
-uv run --frozen python -m app.ingestion.cli enrich
+uv run --frozen python -m app.cli.ingest enrich
 ```
 
 Search theo nghĩa (dense hoặc hybrid) cần tải model và tạo index:
 
 ```bash
-uv run --frozen python -m app.retrieval.cli download-model
-uv run --frozen python -m app.retrieval.cli index
+uv run --frozen python -m app.cli.search download-model
+uv run --frozen python -m app.cli.search index
 ```
 
 ## Ví dụ API

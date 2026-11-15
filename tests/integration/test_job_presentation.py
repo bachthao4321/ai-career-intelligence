@@ -8,11 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.models import Job
-from app.ingestion.contracts import JobRecord
-from app.ingestion.presentation import presentations
-from app.ingestion.reviewed_titles import REVIEWED_TITLES
 from app.ingestion.service import import_records
-from app.ingestion.translate import translate_titles
+from app.schemas.ingestion import JobRecord
+from app.services.translation.presentation import presentations
+from app.services.translation.reviewed_titles import REVIEWED_TITLES
+from app.services.translation.titles import translate_titles
 
 pytestmark = [
     pytest.mark.integration,

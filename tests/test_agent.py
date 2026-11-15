@@ -5,10 +5,10 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from app.agents.planner import ModelPlanner, Plan, deterministic_plan
-from app.agents.workflow import AskRequest, CareerAgent
 from app.core.config import Settings
-from app.security.sql import UnsafeSQL
+from app.core.security.sql import UnsafeSQL
+from app.services.ask.planner import ModelPlanner, Plan, deterministic_plan
+from app.services.ask.workflow import AskRequest, CareerAgent
 
 
 @pytest.mark.parametrize(
@@ -61,7 +61,7 @@ async def test_disabled_model_never_reserves_or_connects(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     reserve = AsyncMock()
-    monkeypatch.setattr("app.agents.planner.reserve_daily_call", reserve)
+    monkeypatch.setattr("app.services.ask.planner.reserve_daily_call", reserve)
     planner = ModelPlanner(settings, AsyncMock())
     assert (await planner.plan("ambiguous")).route == "clarify"
     reserve.assert_not_called()
@@ -83,7 +83,7 @@ async def test_model_adapter_strict_json_and_bounded_request(
     choice: dict[str, object], settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     reserve = AsyncMock(return_value=True)
-    monkeypatch.setattr("app.agents.planner.reserve_daily_call", reserve)
+    monkeypatch.setattr("app.services.ask.planner.reserve_daily_call", reserve)
     calls = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -111,7 +111,9 @@ async def test_model_adapter_strict_json_and_bounded_request(
 async def test_budget_exhausted_never_connects(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("app.agents.planner.reserve_daily_call", AsyncMock(return_value=False))
+    monkeypatch.setattr(
+        "app.services.ask.planner.reserve_daily_call", AsyncMock(return_value=False)
+    )
     config = settings.model_copy(update={"agent_model_enabled": True})
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -138,7 +140,7 @@ async def test_graph_blocks_model_sql_before_execution() -> None:
 
 
 def test_cloud_analysis_template_preserves_scope_and_blocks_extra_conditions() -> None:
-    from app.security.sql import validate_sql
+    from app.core.security.sql import validate_sql
 
     plan = deterministic_plan(
         "Trong các job Data Engineer hiện có, công nghệ cloud nào được nhắc nhiều nhất?"
@@ -157,7 +159,7 @@ def test_cloud_analysis_template_preserves_scope_and_blocks_extra_conditions() -
 async def test_skill_answer_uses_matching_job_as_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
     from types import SimpleNamespace
 
-    from app.agents.analytics import AnalyticsResult
+    from app.services.ask.analytics import AnalyticsResult
 
     analytics = AsyncMock()
     analytics.scope = "local"
@@ -176,7 +178,7 @@ async def test_skill_answer_uses_matching_job_as_evidence(monkeypatch: pytest.Mo
             )
         ]
     )
-    monkeypatch.setattr("app.agents.workflow.load_documents", documents)
+    monkeypatch.setattr("app.services.ask.workflow.load_documents", documents)
     response = await CareerAgent(search, analytics, AsyncMock()).ask(
         AskRequest(question="Có bao nhiêu tin nhắc đến Python?")
     )

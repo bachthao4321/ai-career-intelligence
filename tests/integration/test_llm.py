@@ -13,10 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from app.core.config import Settings
 from app.db.models import ExtractionRun, LlmAttempt, LlmDailyUsage, LlmDecision
 from app.ingestion.batching import BatchExtractor
-from app.ingestion.contracts import JobRecord
 from app.ingestion.service import import_records
-from app.llm.runtime import CallBudget, ModelFailure, ModelRuntime
+from app.integrations.llm.runtime import CallBudget, ModelFailure, ModelRuntime
 from app.main import create_app
+from app.schemas.ingestion import JobRecord
 from tests.retrieval_helpers import TestEmbedder
 from tests.test_model_runtime import completion
 

@@ -1,7 +1,7 @@
 import pytest
 
 from app.core.config import Settings
-from app.ingestion.contracts import JobRecord
+from app.schemas.ingestion import JobRecord
 
 
 @pytest.fixture

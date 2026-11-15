@@ -2,8 +2,8 @@ import hashlib
 import uuid
 from collections.abc import Sequence
 
-from app.retrieval.contracts import SearchDocument
-from app.retrieval.embeddings import TextChunk
+from app.integrations.embeddings import TextChunk
+from app.schemas.search import SearchDocument
 
 
 class TestEmbedder:

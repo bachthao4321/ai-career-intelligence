@@ -11,8 +11,8 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from app.ingestion.contracts import JobRecord
 from app.ingestion.sources import _write_snapshot, html_to_text, parse_publication_time
+from app.schemas.ingestion import JobRecord
 
 ITVIEC_INDEX = "https://itviec.com/it-jobs"
 ITVIEC_TERMS = "https://itviec.com/blog/terms-and-conditions/"

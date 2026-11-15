@@ -7,8 +7,8 @@ from pydantic import SecretStr, ValidationError
 from starlette.requests import Request
 
 from app.core.config import Settings
+from app.core.security import demo
 from app.main import create_app
-from app.security import demo
 
 
 def secured(settings: Settings, **updates) -> Settings:

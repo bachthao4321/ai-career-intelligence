@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter
 
-from app.ingestion.contracts import EvidenceField, JobRecord, SkillMention, alias_key, json_hash
+from app.schemas.ingestion import EvidenceField, JobRecord, SkillMention, alias_key, json_hash
 
 EXTRACTION_VERSION = "grounded-v2"
 NON_SKILL_CONTEXT = re.compile(

@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.models import AliasCandidate, Job, SkillAlias
-from app.ingestion.contracts import JobRecord
 from app.ingestion.service import import_records, review_alias
+from app.schemas.ingestion import JobRecord
 
 pytestmark = [
     pytest.mark.integration,

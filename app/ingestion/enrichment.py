@@ -10,10 +10,10 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.db.models import Job, JobFact, JobSkill
-from app.ingestion.contracts import EvidenceField
 from app.ingestion.facts import FACTS_VERSION, JobFacts, facts_from
 from app.ingestion.requirements import REQUIREMENT_VERSION, classify_requirement
 from app.ingestion.service import upsert_facts
+from app.schemas.ingestion import EvidenceField
 
 
 async def enrich_existing(engine: AsyncEngine, *, batch_size: int = 200) -> dict[str, object]:

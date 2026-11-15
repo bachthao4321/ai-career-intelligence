@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.models import ExtractionRun, Job, LlmDailyUsage
-from app.ingestion.contracts import JobRecord
-from app.ingestion.llm import DeepSeekExtractor
 from app.ingestion.service import import_records
+from app.integrations.llm.deepseek import DeepSeekExtractor
 from app.main import create_app
+from app.schemas.ingestion import JobRecord
 from tests.test_demo_security import basic, secured
 
 pytestmark = [

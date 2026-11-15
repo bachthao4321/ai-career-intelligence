@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
+from app.core.policies import local_research_only
 from app.db.models import (
     AliasCandidate,
     ExtractionRun,
@@ -20,7 +21,6 @@ from app.db.models import (
     SkillAlias,
 )
 from app.ingestion.batching import BatchExtractor, record_key
-from app.ingestion.contracts import JobRecord, SkillMention, alias_key, json_hash
 from app.ingestion.extraction import (
     EXTRACTION_VERSION,
     SkillCatalog,
@@ -28,10 +28,10 @@ from app.ingestion.extraction import (
     validate_mentions,
 )
 from app.ingestion.facts import JobFacts, extract_facts
-from app.ingestion.llm import DeepSeekExtractor, ExtractionError, reserve_daily_call
-from app.ingestion.policies import local_research_only
 from app.ingestion.requirements import classify_requirement
-from app.llm.runtime import CallBudget
+from app.integrations.llm.deepseek import DeepSeekExtractor, ExtractionError, reserve_daily_call
+from app.integrations.llm.runtime import CallBudget
+from app.schemas.ingestion import JobRecord, SkillMention, alias_key, json_hash
 
 
 @dataclass

@@ -7,9 +7,9 @@ from pydantic import HttpUrl, SecretStr
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import Settings
-from app.ingestion.contracts import JobRecord
 from app.ingestion.service import import_records
 from app.main import create_app
+from app.schemas.ingestion import JobRecord
 from tests.test_demo_security import basic, secured
 
 pytestmark = [

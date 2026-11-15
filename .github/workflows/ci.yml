@@ -52,8 +52,8 @@ jobs:
       - run: uv run --frozen pytest -m integration
       - name: Exercise operator CLI and job API with synthetic data
         run: |
-          uv run --frozen python -m app.ingestion.cli import examples/jobs.synthetic.json
-          uv run --frozen python -m app.ingestion.cli import examples/jobs.synthetic.json
+          uv run --frozen python -m app.cli.ingest import examples/jobs.synthetic.json
+          uv run --frozen python -m app.cli.ingest import examples/jobs.synthetic.json
           curl --fail 'http://localhost:8000/jobs?limit=1'
           curl --fail --json '{"query":"Python","mode":"bm25","top_k":3}' http://localhost:8000/search
           curl --fail --json '{"question":"How many jobs?"}' http://localhost:8000/ask > /tmp/ask.json
