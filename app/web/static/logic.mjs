@@ -43,3 +43,10 @@ export function descriptionSegments(value) {
     ];
   });
 }
+
+export function credentialProblem(email, password) {
+  if (!/^[^@\s]{1,64}@[^@\s.]+(\.[^@\s.]+)+$/.test(email) || email.length > 254) return 'Hãy nhập một địa chỉ email hợp lệ.';
+  if (password.length < 8) return 'Mật khẩu cần tối thiểu 8 ký tự.';
+  if (password.length > 128) return 'Mật khẩu tối đa 128 ký tự.';
+  return null;
+}

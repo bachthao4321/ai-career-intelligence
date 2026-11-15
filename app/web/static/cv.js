@@ -1,5 +1,5 @@
-import { $, api, el, icon, tag, jobHeading, link, skillName, emptyState, loading, notice, busy, warningText, openDialog, toast } from './ui.js?v=20261113-1';
-import { savedCredential, time, date, number, skillLabel } from './logic.mjs?v=20261113-1';
+import { $, api, el, icon, tag, jobHeading, link, skillName, emptyState, loading, notice, busy, warningText, openDialog, toast } from './ui.js?v=20261114-1';
+import { savedCredential, time, date, number, skillLabel } from './logic.mjs?v=20261114-1';
 
 const SESSION_KEY = 'careerlens.cv.v1';
 export function initCV(context) {
@@ -54,7 +54,7 @@ export function initCV(context) {
     for (const skill of job.matched_skills) details.append(el('h4', { text: skillName(skill.slug, context.overview()) }), el('blockquote', { class: 'evidence-block', text: `CV · ${skill.cv_evidence.map(span => `trang ${span.page}: “${span.text}”`).join('; ')}\nTin gốc · “${skill.job_evidence.text}”` }));
     if (job.skills_not_seen_in_cv.length) details.append(el('h4', { text: 'Tin tuyển dụng có nhắc, CV chưa đề cập' }), ...job.skills_not_seen_in_cv.map(skill => el('blockquote', { class: 'evidence-block', text: `${skillName(skill.slug, context.overview())} · Tin gốc: “${skill.job_evidence.text}”` })));
     if (job.cv_skills_not_mentioned_in_job.length) details.append(el('h4', { text: 'Có trong CV, chưa thấy trong tin' }), el('p', { class: 'report-note', text: job.cv_skills_not_mentioned_in_job.map(slug => skillName(slug, context.overview())).join(', ') }));
-    return el('article', { class: 'match-card' }, jobHeading(job, context.openJob), coverage, compare, total || job.cv_skills_not_mentioned_in_job.length ? details : null, el('div', { class: 'job-card-footer match-footer' }, link(job.source_url, 'Mở tin gốc'), el('button', { class: 'text-button', onclick: () => context.openJob(job.job_id) }, 'Xem công việc', icon('arrow-right'))));
+    return el('article', { class: 'match-card' }, jobHeading(job, context.openJob), coverage, compare, total || job.cv_skills_not_mentioned_in_job.length ? details : null, el('div', { class: 'job-card-footer match-footer' }, context.saveButton(job), link(job.source_url, 'Mở tin gốc'), el('button', { class: 'text-button', onclick: () => context.openJob(job.job_id) }, 'Xem công việc', icon('arrow-right'))));
   }
   async function match() {
     if (!credentials || expiry()) return;

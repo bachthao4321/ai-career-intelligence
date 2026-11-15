@@ -13,6 +13,8 @@ from app.agents.planner import ModelPlanner
 from app.agents.workflow import CareerAgent
 from app.api.admin import router as admin_router
 from app.api.ask import router as ask_router
+from app.api.auth import router as auth_router
+from app.api.auth import saved_router
 from app.api.cv import router as cv_router
 from app.api.health import DependencyProbes, router
 from app.api.jobs import router as jobs_router
@@ -101,6 +103,8 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
     application.include_router(admin_router)
     application.include_router(cv_router)
     application.include_router(platform_router)
+    application.include_router(auth_router)
+    application.include_router(saved_router)
     application.include_router(web_router)
     application.mount("/assets", StaticFiles(directory=STATIC), name="platform-assets")
 
@@ -161,7 +165,7 @@ def create_app(settings: Settings | None = None, *, embedder: Embedder | None = 
         else:
             response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        if request.url.path == "/cv" or request.url.path.startswith("/cv/"):
+        if request.url.path.startswith(("/cv", "/auth/", "/me/")):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Referrer-Policy"] = "no-referrer"
         return response

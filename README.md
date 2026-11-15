@@ -5,20 +5,22 @@ Nền tảng hỗ trợ tìm việc IT, tập trung vào Việt Nam và châu Â
 - **Tìm việc** bằng ngôn ngữ tự nhiên (tiếng Việt, Anh, Thụy Điển).
 - **Hỏi số liệu** thị trường tuyển dụng, ví dụ "Top 10 skills".
 - **Đối chiếu CV** với công việc và chỉ ra kỹ năng còn thiếu.
+- **Lưu việc làm** vào tài khoản để xem lại sau.
 
-Giao diện web **CareerLens** gom cả ba tính năng trên.
+Giao diện web **CareerLens** gom tất cả các tính năng trên.
 
 Stack: Python 3.12, FastAPI, PostgreSQL, Qdrant, LangGraph, ONNX MiniLM (chạy local), Docker Compose.
 
 ## Tính năng
 
-| Tính năng | Cách hoạt động | Chi tiết |
-|---|---|---|
-| **Nạp dữ liệu** | Nạp tin từ JobTech, Remotive, ITviec và trang tuyển dụng của các công ty có văn phòng ở Việt Nam. Trích kỹ năng kèm bằng chứng, có phân loại bắt buộc / ưu tiên / phủ định. Trích thêm seniority, số năm kinh nghiệm, lương và hạn nộp. | [INGESTION](docs/INGESTION.md) |
-| **Tìm kiếm** | Mặc định **hybrid**: kết hợp từ khóa (BM25) với tìm theo nghĩa (embeddings), trọng số 2 : 1. Nếu vector index chưa sẵn sàng thì tự quay về BM25. | [RETRIEVAL](docs/RETRIEVAL.md) |
-| **Hỏi dữ liệu** (`/ask`) | Định tuyến câu hỏi sang tìm việc, thống kê hoặc yêu cầu hỏi lại cho rõ. Câu hỏi phổ biến chạy theo mẫu có sẵn, không cần model. SQL do model viết phải qua allowlist và chạy bằng tài khoản chỉ đọc. | [ANALYTICS](docs/ANALYTICS.md) |
-| **Đối chiếu CV** | Upload CV dạng PDF có text. Trích kỹ năng, tìm việc phù hợp, chỉ ra kỹ năng job cần mà chưa thấy trong CV. Chạy hoàn toàn local, không lưu file PDF, profile tự hết hạn sau 1 giờ. | [CV_MATCHING](docs/CV_MATCHING.md) |
-| **Vận hành** | Password gate, quota theo client, cấu hình production (Compose + Caddy), backup và restore. Chưa deploy public. | [OPERATIONS](docs/OPERATIONS.md) |
+| Tính năng | Cách hoạt động |
+|---|---|
+| **Nạp dữ liệu** | Nạp tin từ JobTech, Remotive, ITviec và trang tuyển dụng của các công ty có văn phòng ở Việt Nam. Trích kỹ năng kèm bằng chứng, có phân loại bắt buộc / ưu tiên / phủ định. Trích thêm seniority, số năm kinh nghiệm, lương và hạn nộp. |
+| **Tìm kiếm** | Mặc định **hybrid**: kết hợp từ khóa (BM25) với tìm theo nghĩa (embeddings), trọng số 2 : 1. Nếu vector index chưa sẵn sàng thì tự quay về BM25. |
+| **Hỏi dữ liệu** (`/ask`) | Định tuyến câu hỏi sang tìm việc, thống kê hoặc yêu cầu hỏi lại cho rõ. Câu hỏi phổ biến chạy theo mẫu có sẵn, không cần model. SQL do model viết phải qua allowlist và chạy bằng tài khoản chỉ đọc. |
+| **Đối chiếu CV** | Upload CV dạng PDF có text. Trích kỹ năng, tìm việc phù hợp, chỉ ra kỹ năng job cần mà chưa thấy trong CV. Chạy hoàn toàn local, không lưu file PDF, profile tự hết hạn sau 1 giờ. |
+| **Tài khoản** | Đăng ký, đăng nhập bằng email và mật khẩu, lưu tối đa 500 việc làm. Mật khẩu băm bằng scrypt, phiên đăng nhập là cookie HttpOnly. |
+| **Vận hành** | Password gate, quota theo client, cấu hình production (Compose + Caddy), backup và restore. Chưa deploy public. |
 
 ## Chạy nhanh
 
@@ -89,16 +91,6 @@ Integration test chỉ ghi vào schema tạm, nhưng đừng chạy với databa
 
 - **Dữ liệu chỉ nằm trên máy local**, không có trong Git. Snapshot ngày 2026-11-10 có 838 tin, chủ yếu từ JobTech, nên chưa đại diện cho thị trường Việt Nam.
 - **ITviec** chỉ dùng cho nghiên cứu cá nhân. Nguồn này bị ẩn khi chạy ngoài môi trường local và không bao giờ gửi tới model bên ngoài.
-- **Chất lượng search** mới được đo trên 60 câu hỏi với nhãn tự động (silver), chưa có người duyệt. Xem [M2_VALIDATION](docs/M2_VALIDATION.md).
+- **Chất lượng search** mới được đo trên 60 câu hỏi với nhãn tự động (silver), chưa có người duyệt.
 - **Kỹ năng** là những gì được nhắc trong tin. Kỹ năng không xuất hiện trong CV không có nghĩa là ứng viên không biết. Điểm match chỉ là heuristic, không phải xác suất được tuyển.
 - Các con số trong mô tả dự án ban đầu (1.081 jobs, 323 tests...) chỉ là mốc tham chiếu, **không phải** kết quả của repo này. Chỉ đưa thành tích vào CV khi có dữ liệu và artifact chứng minh.
-
-## Tài liệu
-
-- [Kế hoạch và milestones](docs/IMPLEMENTATION_PLAN.md) · [Cài đặt local](docs/DEVELOPMENT.md)
-- Nạp dữ liệu: [INGESTION](docs/INGESTION.md) · [Nguồn Việt Nam](docs/VIETNAM_SOURCES.md) · [Bổ sung dữ liệu](docs/DATA_REFRESH.md)
-- Tìm kiếm: [RETRIEVAL](docs/RETRIEVAL.md) · [Reranker, retry, quota](docs/RELIABILITY.md)
-- Hỏi dữ liệu: [ANALYTICS](docs/ANALYTICS.md) · [Qwen LAN](docs/QWEN_LAN_VALIDATION.md)
-- CV: [CV_MATCHING](docs/CV_MATCHING.md) · Giao diện: [PLATFORM_UI](docs/PLATFORM_UI.md)
-- Vận hành: [OPERATIONS](docs/OPERATIONS.md)
-- Kết quả kiểm chứng: [M1](docs/M1_VALIDATION.md) · [M2](docs/M2_VALIDATION.md) · [M3](docs/M3_VALIDATION.md) · [M4](docs/M4_VALIDATION.md) · [M5](docs/M5_VALIDATION.md) · [M6](docs/M6_VALIDATION.md)

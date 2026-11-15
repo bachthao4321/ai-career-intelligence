@@ -1,4 +1,4 @@
-import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261113-1';
+import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261114-1';
 
 const paths = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',
@@ -27,6 +27,10 @@ const paths = {
   trash: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
+  bookmark: '<path d="M6 3h12v18l-6-4-6 4Z"/>',
+  'bookmark-filled': '<path d="M6 3h12v18l-6-4-6 4Z" fill="currentColor"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  logout: '<path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4m6-13 5 5-5 5m5-5H9"/>',
 };
 
 export const $ = id => document.getElementById(id);
@@ -140,7 +144,7 @@ export function jobCard(job, context) {
   const excerpt = job.excerpt ? el('p', { class: 'job-excerpt', text: 'Đang tải mô tả gốc…' }) : null;
   return el('article', { class: 'job-card' }, jobHeading(job, context.openJob, excerpt), excerpt,
     job.skills?.length ? el('div', { class: 'job-tags' }, job.skills.slice(0, 5).map(slug => tag(skillName(slug, context.overview()))), job.skills.length > 5 ? el('button', { class: 'tag overflow-tags', type: 'button', 'aria-label': `Xem thêm ${job.skills.length - 5} kỹ năng: ${job.title}`, onclick: () => context.openJob(job.job_id || job.id), text: `+${job.skills.length - 5}` }) : null) : null,
-    el('div', { class: 'job-card-footer' }, el('span', { class: 'job-footnote', text: footer }), el('div', { class: 'job-card-actions' }, link(job.source_url, 'Tin gốc'), el('button', { class: 'text-button', type: 'button', 'aria-label': `Xem chi tiết: ${job.title}`, onclick: () => context.openJob(job.job_id || job.id) }, 'Xem chi tiết', icon('arrow-right')))));
+    el('div', { class: 'job-card-footer' }, el('span', { class: 'job-footnote', text: footer }), el('div', { class: 'job-card-actions' }, context.saveButton ? context.saveButton(job) : null, link(job.source_url, 'Tin gốc'), el('button', { class: 'text-button', type: 'button', 'aria-label': `Xem chi tiết: ${job.title}`, onclick: () => context.openJob(job.job_id || job.id) }, 'Xem chi tiết', icon('arrow-right')))));
 }
 export function emptyState(title, message, symbol = 'search', action = null) { return el('div', { class: 'quiet-state' }, icon(symbol), el('h3', { text: title }), el('p', { text: message }), action); }
 export function loading(message) { return el('div', { class: 'loading-inline', role: 'status' }, el('span', { class: 'spinner', 'aria-hidden': 'true' }), message); }
@@ -167,6 +171,12 @@ const errorMessages = {
   'Dense index/model unavailable; run model download and indexing': 'Tìm theo ý nghĩa chưa sẵn sàng. Bạn có thể chuyển sang tìm theo từ khóa.',
   'Corpus limit exceeded; narrow search filters': 'Có quá nhiều tin cho một lượt tìm. Hãy thu hẹp nguồn hoặc địa điểm.',
   'Corpus limit exceeded; narrow filters': 'Hãy thu hẹp nguồn hoặc địa điểm trước khi đối chiếu.',
+  'Invalid email or password': 'Email hoặc mật khẩu chưa đúng.',
+  'Email already registered': 'Email này đã có tài khoản. Hãy đăng nhập.',
+  'Too many attempts; retry later': 'Bạn đã thử quá nhiều lần. Vui lòng chờ một phút rồi thử lại.',
+  'Login required': 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',
+  'Saved job limit reached': 'Bạn đã lưu tối đa 500 việc làm. Hãy bỏ bớt trước khi lưu thêm.',
+  'Account storage unavailable': 'Chưa kết nối được dữ liệu tài khoản. Vui lòng thử lại sau.',
 };
 export class ApiError extends Error { constructor(status, detail) { super(errorMessages[detail] || ({ 400: 'Yêu cầu chưa hợp lệ. Hãy kiểm tra thông tin đã nhập.', 404: 'Hồ sơ hoặc công việc không còn truy cập được.', 408: 'Kết nối quá chậm. Vui lòng thử lại.', 413: 'File vượt giới hạn 2 MiB.', 415: 'Hãy chọn một file PDF.', 422: 'Thông tin chưa hợp lệ. Hãy kiểm tra nội dung và bộ lọc.', 503: 'Dịch vụ tạm thời chưa sẵn sàng. Vui lòng thử lại sau.' }[status]) || 'Chưa thể kết nối máy chủ. Vui lòng thử lại.'); this.status = status; } }
 export async function api(path, { json, ...options } = {}) {
