@@ -73,6 +73,3 @@ not constitute a complete accessibility audit. Physical-device, Safari and
 Firefox testing remain unperformed. Dark mode is not enabled.
 
 This iteration stays local. No commit or push was performed.
-
-The research, source links, adaptation decisions and filter interaction checks
-are documented in [the reference study](../../docs/DESIGN_REFERENCES.md).
