@@ -1,48 +1,20 @@
 import asyncio
 import logging
-from typing import Annotated, Literal, Protocol, cast
+from typing import Annotated, Literal
 
-import httpx
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
+
+from app.api.deps import SettingsDep, get_services
+from app.integrations.probes import Probes
+from app.schemas.platform import HealthResponse, ReadyResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Operations"])
-
-
-class Probes(Protocol):
-    async def postgres(self) -> None: ...
-
-    async def qdrant(self) -> None: ...
-
-
-class DependencyProbes:
-    def __init__(self, engine: AsyncEngine, client: httpx.AsyncClient) -> None:
-        self.engine = engine
-        self.client = client
-
-    async def postgres(self) -> None:
-        async with self.engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
-
-    async def qdrant(self) -> None:
-        response = await self.client.get("/readyz")
-        response.raise_for_status()
+routers = [router]
 
 
 def get_probes(request: Request) -> Probes:
-    return cast(Probes, request.app.state.probes)
-
-
-class HealthResponse(BaseModel):
-    status: Literal["ok"] = "ok"
-
-
-class ReadyResponse(BaseModel):
-    status: Literal["ready", "not_ready"]
-    dependencies: dict[str, Literal["ok", "unavailable"]]
+    return get_services(request).probes
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -52,15 +24,12 @@ async def health() -> HealthResponse:
 
 @router.get("/ready", response_model=ReadyResponse, responses={503: {"model": ReadyResponse}})
 async def ready(
-    request: Request, response: Response, probes: Annotated[Probes, Depends(get_probes)]
+    response: Response, settings: SettingsDep, probes: Annotated[Probes, Depends(get_probes)]
 ) -> ReadyResponse:
     async def check(name: str) -> Literal["ok", "unavailable"]:
         try:
-            async with asyncio.timeout(request.app.state.dependency_timeout_seconds):
-                if name == "postgres":
-                    await probes.postgres()
-                else:
-                    await probes.qdrant()
+            async with asyncio.timeout(settings.dependency_timeout_seconds):
+                await (probes.postgres() if name == "postgres" else probes.qdrant())
             return "ok"
         except Exception:
             # Never expose connection strings, provider responses, or credentials.

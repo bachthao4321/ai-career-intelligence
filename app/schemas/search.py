@@ -5,8 +5,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.policies import local_research_only
-from app.ingestion.requirements import Requirement
-from app.schemas.ingestion import EvidenceField, json_hash
+from app.schemas.ingestion import EvidenceField, Requirement, json_hash
 
 Slug = Annotated[str, Field(pattern=r"^[a-z0-9_-]+$", min_length=1, max_length=100)]
 

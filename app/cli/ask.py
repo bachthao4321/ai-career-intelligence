@@ -10,9 +10,10 @@ from app.core.config import Settings
 from app.db.session import create_engine
 from app.integrations.embeddings import LocalMiniLM
 from app.integrations.qdrant import QdrantStore
+from app.schemas.ask import AskRequest
 from app.services.ask.analytics import AnalyticsExecutor, provision_role
 from app.services.ask.planner import ModelPlanner
-from app.services.ask.workflow import AskRequest, CareerAgent
+from app.services.ask.workflow import CareerAgent
 from app.services.search.indexing import namespace
 from app.services.search.service import SearchService
 

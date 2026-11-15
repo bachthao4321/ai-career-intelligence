@@ -28,9 +28,10 @@ from app.ingestion.extraction import (
     validate_mentions,
 )
 from app.ingestion.facts import JobFacts, extract_facts
+from app.ingestion.model_extraction import DeepSeekExtractor, ExtractionError
 from app.ingestion.requirements import classify_requirement
-from app.integrations.llm.deepseek import DeepSeekExtractor, ExtractionError, reserve_daily_call
 from app.integrations.llm.runtime import CallBudget
+from app.repositories.quotas import reserve_daily_call
 from app.schemas.ingestion import JobRecord, SkillMention, alias_key, json_hash
 
 

@@ -7,8 +7,9 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.core.security.sql import UnsafeSQL
+from app.schemas.ask import AskRequest
 from app.services.ask.planner import ModelPlanner, Plan, deterministic_plan
-from app.services.ask.workflow import AskRequest, CareerAgent
+from app.services.ask.workflow import CareerAgent
 
 
 @pytest.mark.parametrize(

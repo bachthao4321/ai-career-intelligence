@@ -280,7 +280,7 @@ async def test_search_api_rerank_is_opt_in_and_validated_cache_is_reused(
 
     def check():
         with TestClient(create_app(configured, embedder=TestEmbedder())) as client:
-            client.app.state.search_service.reranker.runtime.transport = httpx.MockTransport(
+            client.app.state.services.search.reranker.runtime.transport = httpx.MockTransport(
                 handler
             )
             baseline = client.post("/search", json={"query": "Python"}).json()

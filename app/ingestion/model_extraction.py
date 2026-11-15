@@ -1,34 +1,16 @@
 import json
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 from pydantic import ValidationError
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import Settings
-from app.db.models import LlmDailyUsage
 from app.ingestion.extraction import EXTRACTION_VERSION, SkillCatalog
 from app.schemas.ingestion import EVIDENCE_FIELDS, ExtractionOutput, JobRecord
 
 
 class ExtractionError(RuntimeError):
     """Only safe error codes, never raw provider responses or credentials."""
-
-
-async def reserve_daily_call(engine: AsyncEngine, limit: int) -> bool:
-    if limit <= 0:
-        return False
-    statement = insert(LlmDailyUsage).values(day=datetime.now(UTC).date(), calls=1)
-    reservation = statement.on_conflict_do_update(
-        index_elements=[LlmDailyUsage.day],
-        set_={"calls": LlmDailyUsage.calls + 1},
-        where=LlmDailyUsage.calls < limit,
-    ).returning(LlmDailyUsage.calls)
-    # Separate committed transaction: a failed import must not refund an API attempt.
-    async with engine.begin() as connection:
-        return await connection.scalar(reservation) is not None
 
 
 class DeepSeekExtractor:

@@ -5,7 +5,6 @@ import json
 import re
 import time
 from collections import OrderedDict
-from typing import Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,12 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import Settings
 from app.core.policies import local_research_only
-from app.integrations.llm.deepseek import reserve_daily_call
+from app.repositories.quotas import reserve_daily_call
 from app.schemas.ingestion import json_hash
+from app.schemas.jobs import Language, Target
 from app.services.translation.titles import trusted_private_target
 
-Language = Literal["en", "vi", "other", "unknown"]
-Target = Literal["en", "vi"]
 _WORDS = {
     "en": frozenset(
         (

@@ -1,14 +1,14 @@
 """Read-only job presentation; country comes from provenance, never from an LLM."""
 
-from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.db.models import Job
+from app.ingestion.facts import application_deadline
 from app.schemas.ingestion import json_hash
+from app.schemas.jobs import JobPresentation
 from app.services.translation.reviewed_titles import REVIEWED_TITLES
 
 TRANSLATION_VERSION = "title-en-vi-v1"
@@ -27,18 +27,6 @@ COUNTRIES = {
     "SG": ("Singapore",),
 }
 ALIASES = {alias.casefold(): code for code, names in COUNTRIES.items() for alias in (code, *names)}
-
-
-class JobPresentation(BaseModel):
-    original_title: str
-    country_codes: list[str]
-    country_names: list[str]
-    country_label: str
-    title_en: str | None = None
-    title_vi: str | None = None
-    translation_model: str | None = None
-    application_deadline: date | None = None
-    source_excerpt: str = ""
 
 
 def translation_signature(settings: Settings) -> str:
@@ -89,27 +77,6 @@ def country_metadata(source: str, raw: dict[str, Any]) -> tuple[list[str], str]:
         }
     )
     return codes, " · ".join(COUNTRIES[code][0] for code in codes) or "Chưa rõ quốc gia"
-
-
-def application_deadline(source: str, raw: dict[str, Any]) -> date | None:
-    """Return the source's calendar date without inventing a time zone."""
-    value: Any = None
-    if source == "jobtech":
-        value = raw.get("application_deadline")
-    elif source == "employer_ats":
-        value = raw.get("application_deadline")
-    elif source in {"itviec", "topcv"}:
-        posting = raw.get("posting")
-        if isinstance(posting, dict):
-            value = posting.get("validThrough")
-    if not isinstance(value, str) or not value or len(value) > 40:
-        return None
-    try:
-        if len(value) == 10:
-            return date.fromisoformat(value)
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
-    except ValueError:
-        return None
 
 
 async def presentations(

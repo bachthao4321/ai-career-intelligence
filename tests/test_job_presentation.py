@@ -103,7 +103,7 @@ def test_reviewed_it_titles_preserve_role_terms_and_technology() -> None:
 def test_application_deadline_uses_explicit_trusted_source_date(
     source: str, raw: dict, expected: str | None
 ) -> None:
-    from app.services.translation.presentation import application_deadline
+    from app.ingestion.facts import application_deadline
 
     value = application_deadline(source, raw)
     assert (value.isoformat() if value else None) == expected

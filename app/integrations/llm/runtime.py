@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.models import LlmAttempt, LlmDecision
-from app.integrations.llm.deepseek import reserve_daily_call
+from app.repositories.quotas import reserve_daily_call
 from app.schemas.ingestion import json_hash
 
 

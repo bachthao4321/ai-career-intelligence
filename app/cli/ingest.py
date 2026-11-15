@@ -16,10 +16,10 @@ from app.db.session import create_engine
 from app.ingestion.batching import BatchExtractor
 from app.ingestion.enrichment import enrich_existing
 from app.ingestion.itviec import fetch_itviec
+from app.ingestion.model_extraction import DeepSeekExtractor
 from app.ingestion.reporting import build_report
 from app.ingestion.service import import_records, review_alias
 from app.ingestion.sources import fetch_jobtech, fetch_remotive, load_records
-from app.integrations.llm.deepseek import DeepSeekExtractor
 from app.integrations.llm.runtime import ModelRuntime
 
 

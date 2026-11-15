@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 STATIC = Path(__file__).resolve().parents[2] / "web" / "static"
 router = APIRouter()
+routers = [router]
 
 
 @router.get("/", include_in_schema=False)

@@ -16,8 +16,8 @@ from app.core.config import Settings
 from app.core.policies import local_research_only
 from app.db.models import Job, JobTitleTranslation
 from app.db.session import create_engine
-from app.integrations.llm.deepseek import reserve_daily_call
 from app.repositories.jobs import visible_jobs
+from app.repositories.quotas import reserve_daily_call
 from app.schemas.ingestion import json_hash
 from app.services.translation.presentation import title_key, translation_signature
 

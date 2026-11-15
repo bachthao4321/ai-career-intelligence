@@ -1,4 +1,4 @@
-"""Shared demo gate plus independent CV capabilities and operator keys."""
+"""Demo password gate: signed session cookies, Basic auth, client identity and origin checks."""
 
 import base64
 import hashlib
@@ -6,18 +6,11 @@ import hmac
 import ipaddress
 import secrets
 import time
-from datetime import timedelta
-from typing import cast
 from urllib.parse import urlsplit
 
-from fastapi import HTTPException, Request
-from sqlalchemy import delete, func, select
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine
+from fastapi import Request
 
 from app.core.config import Settings
-from app.db.models import ClientQuota
 
 
 def cookie_name(settings: Settings) -> str:
@@ -87,73 +80,6 @@ def client_hash(request: Request, settings: Settings) -> str:
         ("client:" + client_address(request, settings)).encode(),
         hashlib.sha256,
     ).hexdigest()
-
-
-async def reserve_client(engine: AsyncEngine, identity: str, category: str, limit: int) -> bool:
-    if limit <= 0:
-        return False
-    if category not in {"minute", "llm_day", "auth_minute"}:
-        raise ValueError("Unknown client quota category")
-    async with engine.begin() as connection:
-        now = (await connection.execute(select(func.clock_timestamp()))).scalar_one()
-        window = now.replace(second=0, microsecond=0)
-        duration = timedelta(minutes=1)
-        if category == "llm_day":
-            # UTC regardless of the database/session timezone.
-            from datetime import UTC
-
-            window = now.astimezone(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-            duration = timedelta(days=1)
-        await connection.execute(delete(ClientQuota).where(ClientQuota.expires_at < now))
-        statement = insert(ClientQuota).values(
-            client_hash=identity,
-            category=category,
-            window_start=window,
-            used=1,
-            expires_at=window + duration,
-        )
-        granted = await connection.scalar(
-            statement.on_conflict_do_update(
-                index_elements=[
-                    ClientQuota.client_hash,
-                    ClientQuota.category,
-                    ClientQuota.window_start,
-                ],
-                set_={"used": ClientQuota.used + 1},
-                where=ClientQuota.used < limit,
-            ).returning(ClientQuota.used)
-        )
-        return granted is not None
-
-
-async def paid_client_gate(request: Request, enabled: bool) -> None:
-    settings = cast(Settings, request.app.state.settings)
-    if not enabled or not settings.client_limits_enabled:
-        return
-    try:
-        granted = await reserve_client(
-            request.app.state.engine,
-            client_hash(request, settings),
-            "llm_day",
-            settings.client_llm_routes_per_day,
-        )
-    except SQLAlchemyError as exc:
-        raise HTTPException(503, "Client quota storage unavailable") from exc
-    if not granted:
-        raise HTTPException(
-            429, "Daily model-route limit reached", headers={"Retry-After": "86400"}
-        )
-
-
-def require_admin(request: Request) -> None:
-    key = cast(Settings, request.app.state.settings).admin_key
-    supplied = request.headers.get("x-admin-key", "")
-    if (
-        not key
-        or len(supplied) > 256
-        or not hmac.compare_digest(supplied.encode(), key.get_secret_value().encode())
-    ):
-        raise HTTPException(403, "Admin key required")
 
 
 def same_origin(request: Request, settings: Settings) -> bool:

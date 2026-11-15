@@ -1,16 +1,18 @@
 import asyncio
 import uuid
-from typing import Annotated, cast
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.api.deps import get_services
 from app.schemas.cv import MAX_PDF_BYTES, CVError, CVUploaded, CVView, MatchReport, MatchRequest
 from app.services.cv.service import CVCapacityReached, CVNotFound, CVService
 from app.services.search.documents import CorpusTooLarge
 
 router = APIRouter(prefix="/cv", tags=["CV matching"])
+routers = [router]
 bearer = HTTPBearer(auto_error=False)
 
 
@@ -21,7 +23,7 @@ def access_token(auth: Annotated[HTTPAuthorizationCredentials | None, Depends(be
 
 
 def service(request: Request) -> CVService:
-    return cast(CVService, request.app.state.cv_service)
+    return get_services(request).cv
 
 
 @router.post(

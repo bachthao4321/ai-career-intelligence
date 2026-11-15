@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import Settings
 from app.core.security.sql import SCHEMA
-from app.integrations.llm.deepseek import reserve_daily_call
+from app.repositories.quotas import reserve_daily_call
 
 
 class Plan(BaseModel):

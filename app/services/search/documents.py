@@ -1,41 +1,20 @@
 from collections import defaultdict
 from typing import cast
 
-from sqlalchemy import Select, select, text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.models import Job, JobSkill
 from app.ingestion.extraction import inside_link_or_email
 from app.ingestion.requirements import as_requirement
-from app.repositories.jobs import visible_jobs
+from app.repositories.jobs import filtered_jobs
 from app.schemas.ingestion import EvidenceField
 from app.schemas.search import SearchDocument, SearchFilters, SourceSkillEvidence
 
 
 class CorpusTooLarge(RuntimeError):
     pass
-
-
-def filtered_jobs(environment: str, filters: SearchFilters) -> Select[tuple[Job]]:
-    statement = select(Job).where(visible_jobs(environment))
-    if filters.source:
-        statement = statement.where(Job.source == filters.source)
-    if filters.location:
-        statement = statement.where(Job.location.icontains(filters.location, autoescape=True))
-    if filters.workplace_type:
-        statement = statement.where(Job.workplace_type == filters.workplace_type)
-    for skill in set(filters.skills):
-        statement = statement.where(
-            select(JobSkill.job_id)
-            .where(
-                JobSkill.job_id == Job.id,
-                JobSkill.content_hash == Job.content_hash,
-                JobSkill.skill_slug == skill,
-            )
-            .exists()
-        )
-    return statement
 
 
 async def load_documents(
@@ -55,7 +34,7 @@ async def load_documents(
         ).all()
         if len(jobs) > settings.search_corpus_limit:
             raise CorpusTooLarge(
-                "M2 corpus limit exceeded; narrow filters or use a larger-scale index"
+                "Corpus limit exceeded; narrow filters or use a larger-scale index"
             )
         if not jobs:
             return []

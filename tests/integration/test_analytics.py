@@ -17,10 +17,11 @@ from app.core.config import Settings
 from app.core.security.sql import UnsafeSQL
 from app.ingestion.service import import_records
 from app.main import create_app
+from app.schemas.ask import AskRequest
 from app.schemas.ingestion import JobRecord
 from app.services.ask.analytics import AnalyticsExecutor, AnalyticsUnavailable, provision_role
 from app.services.ask.planner import ModelPlanner, Plan, deterministic_plan
-from app.services.ask.workflow import AskRequest, CareerAgent
+from app.services.ask.workflow import CareerAgent
 
 pytestmark = [
     pytest.mark.integration,

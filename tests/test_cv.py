@@ -228,6 +228,6 @@ def test_stream_limit_without_content_length_and_parser_busy(settings: Settings)
             content=iter([b"%PDF-", b"a" * MAX_PDF_BYTES]),
         )
         assert response.status_code == 413
-        client.app.state.cv_service.upload_slots = asyncio.Semaphore(0)
+        client.app.state.services.cv.upload_slots = asyncio.Semaphore(0)
         response = client.post("/cv", headers={"content-type": "application/pdf"}, content=b"%PDF-")
         assert response.status_code == 503

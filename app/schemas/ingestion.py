@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
+Requirement = Literal["required", "preferred", "negated", "unspecified"]
 EvidenceField = Literal["title", "description", "structured_skills"]
 EVIDENCE_FIELDS: tuple[EvidenceField, ...] = ("title", "description", "structured_skills")
 

@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.ingestion.requirements import Requirement
+from app.schemas.ingestion import Requirement
 from app.schemas.search import SearchFilters, SourceSkillEvidence
 
 MAX_PDF_BYTES = 2 * 1024 * 1024
