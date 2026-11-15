@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 import json
-import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,22 +13,26 @@ from app.core.config import Settings
 from app.db.models import AliasCandidate
 from app.db.session import create_engine
 from app.ingestion.batching import BatchExtractor
+from app.ingestion.employers import fetch_employers
 from app.ingestion.enrichment import enrich_existing
 from app.ingestion.itviec import fetch_itviec
 from app.ingestion.model_extraction import DeepSeekExtractor
 from app.ingestion.reporting import build_report
 from app.ingestion.service import import_records, review_alias
-from app.ingestion.sources import fetch_jobtech, fetch_remotive, load_records
+from app.ingestion.sources import fetch_jobtech, fetch_remotive, load_records, write_snapshot
 from app.integrations.llm.runtime import ModelRuntime
+
+HINT = "Ingestion failed; check configuration, source format and migration state."
 
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
-        description="Operator-only ingestion; no public write endpoints."
+        prog="python -m app.cli ingest",
+        description="Operator-only ingestion; no public write endpoints.",
     )
     commands = root.add_subparsers(dest="command", required=True)
     fetch = commands.add_parser("fetch")
-    fetch.add_argument("source", choices=["jobtech", "remotive", "itviec"])
+    fetch.add_argument("source", choices=["jobtech", "remotive", "itviec", "employers"])
     fetch.add_argument("--limit", type=int)
     fetch.add_argument("--offset", type=int, default=0, help="JobTech result offset (default: 0)")
     ingest = commands.add_parser("import")
@@ -60,6 +63,12 @@ def write_report(path: Path, value: dict[str, Any]) -> None:
 
 
 async def run(args: argparse.Namespace) -> dict[str, Any]:
+    if args.command == "fetch" and args.source == "employers":
+        path = Path("data/raw") / f"employers-{datetime.now(UTC).date()}.json"
+        rows, counts = await asyncio.to_thread(fetch_employers)
+        await asyncio.to_thread(write_snapshot, path, rows)
+        records, errors = await asyncio.to_thread(load_records, path)
+        return {"snapshot": str(path), "valid_jobs": len(records), "skipped": errors, **counts}
     if args.command == "fetch":
         if args.offset and args.source != "jobtech":
             raise ValueError("Only JobTech supports result offsets")
@@ -130,28 +139,3 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         return {"candidate_id": str(args.candidate_id), "decision": args.decision}
     finally:
         await engine.dispose()
-
-
-def main() -> None:
-    args = parser().parse_args()
-    try:
-        value = asyncio.run(run(args))
-    except Exception as exc:
-        # Safe classification only: DB/provider exceptions may carry secrets or job text.
-        print(
-            json.dumps(
-                {
-                    "error": type(exc).__name__,
-                    "message": (
-                        "Ingestion failed; check configuration, source format and migration state."
-                    ),
-                }
-            ),
-            file=sys.stderr,
-        )
-        raise SystemExit(1) from None
-    print(json.dumps(value, ensure_ascii=False, indent=2))
-
-
-if __name__ == "__main__":
-    main()

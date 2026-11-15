@@ -1,32 +1,24 @@
-import asyncio
-import json
+import argparse
 
 from app.core.config import Settings
 from app.db.session import create_engine
 from app.services.cv.service import CVService
 
+HINT = "Check DB and migrations"
 
-async def cleanup() -> int:
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(
+        prog="python -m app.cli cv", description="Purge expired CV rows without reading their text"
+    )
+    root.add_argument("command", choices=["cleanup"])
+    return root
+
+
+async def run(args: argparse.Namespace) -> dict[str, int]:
     settings = Settings()
     engine = create_engine(settings)
     try:
-        return await CVService(engine, settings).cleanup()
+        return {"removed": await CVService(engine, settings).cleanup()}
     finally:
         await engine.dispose()
-
-
-def main() -> None:
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Purge expired CV rows without reading their text")
-    parser.add_argument("command", choices=["cleanup"])
-    parser.parse_args()
-    try:
-        print(json.dumps({"removed": asyncio.run(cleanup())}))
-    except Exception as exc:
-        print(json.dumps({"error": type(exc).__name__, "hint": "Check DB and migrations"}))
-        raise SystemExit(1) from None
-
-
-if __name__ == "__main__":
-    main()

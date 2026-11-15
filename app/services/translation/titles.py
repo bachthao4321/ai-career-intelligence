@@ -1,9 +1,8 @@
 """Bounded operator-only title translation. Reads never trigger model calls."""
 
-import argparse
 import asyncio
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 import httpx
@@ -15,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from app.core.config import Settings
 from app.core.policies import local_research_only
 from app.db.models import Job, JobTitleTranslation
-from app.db.session import create_engine
 from app.repositories.jobs import visible_jobs
 from app.repositories.quotas import reserve_daily_call
 from app.schemas.ingestion import json_hash
@@ -225,38 +223,3 @@ async def translate_titles(
                 await run(batch)
         report.remaining = len(titles) - report.translated
     return report
-
-
-async def main_async(args: argparse.Namespace) -> None:
-    settings = Settings()
-    engine = create_engine(settings)
-    try:
-        report = await translate_titles(
-            engine, settings, max_calls=args.max_calls, batch_size=args.batch_size, limit=args.limit
-        )
-        print(json.dumps(asdict(report)))
-    finally:
-        await engine.dispose()
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--max-calls", type=int, default=0)
-    parser.add_argument("--batch-size", type=int, default=16)
-    parser.add_argument("--limit", type=int, default=1000)
-    try:
-        asyncio.run(main_async(parser.parse_args()))
-    except Exception as exc:
-        print(
-            json.dumps(
-                {
-                    "error": type(exc).__name__,
-                    "message": "Title translation stopped; inspect quota and model configuration.",
-                }
-            )
-        )
-        raise SystemExit(1) from None
-
-
-if __name__ == "__main__":
-    main()

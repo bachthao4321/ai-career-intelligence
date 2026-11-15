@@ -11,7 +11,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from app.ingestion.sources import _write_snapshot, html_to_text, parse_publication_time
+from app.ingestion.sources import html_to_text, parse_publication_time, write_snapshot
 from app.schemas.ingestion import JobRecord
 
 ITVIEC_INDEX = "https://itviec.com/it-jobs"
@@ -187,5 +187,5 @@ async def fetch_itviec(
         "errors": errors,
         "payload": {"jobs": rows},
     }
-    await asyncio.to_thread(_write_snapshot, destination, snapshot)
+    await asyncio.to_thread(write_snapshot, destination, snapshot)
     return destination

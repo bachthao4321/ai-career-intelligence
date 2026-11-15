@@ -1,7 +1,5 @@
 import argparse
 import asyncio
-import json
-import sys
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -18,9 +16,13 @@ from app.services.search.indexing import index_documents, namespace
 from app.services.search.reranking import Reranker
 from app.services.search.service import SearchService
 
+HINT = "Check migrations, local model assets and Qdrant."
+
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(description="Search index operations")
+    root = argparse.ArgumentParser(
+        prog="python -m app.cli search", description="Search index operations"
+    )
     root.add_argument(
         "--public", action="store_true", help="Use public scope; exclude personal-research sources"
     )
@@ -82,25 +84,3 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError(args.command)
     finally:
         await engine.dispose()
-
-
-def main() -> None:
-    args = parser().parse_args()
-    try:
-        value = asyncio.run(run(args))
-    except Exception as exc:
-        print(
-            json.dumps(
-                {
-                    "error": type(exc).__name__,
-                    "hint": "Check migrations, local model assets, Qdrant and dataset fingerprint.",
-                }
-            ),
-            file=sys.stderr,
-        )
-        raise SystemExit(1) from None
-    print(json.dumps(value, ensure_ascii=False, indent=2))
-
-
-if __name__ == "__main__":
-    main()

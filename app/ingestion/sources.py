@@ -163,7 +163,7 @@ async def fetch_jobtech(
         "requests": requests,
         "payload": {"hits": jobs[:limit]},
     }
-    await asyncio.to_thread(_write_snapshot, destination, snapshot)
+    await asyncio.to_thread(write_snapshot, destination, snapshot)
     return destination
 
 
@@ -195,11 +195,11 @@ async def fetch_remotive(
         "request": {"category": "software-dev", "limit": limit},
         "payload": payload,
     }
-    await asyncio.to_thread(_write_snapshot, destination, snapshot)
+    await asyncio.to_thread(write_snapshot, destination, snapshot)
     return destination
 
 
-def _write_snapshot(destination: Path, snapshot: dict[str, Any]) -> None:
+def write_snapshot(destination: Path, snapshot: Any) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation prevents accidental replacement of an existing source snapshot.
     with destination.open("x", encoding="utf-8") as stream:

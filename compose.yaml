@@ -102,7 +102,7 @@ services:
 
   analytics-role:
     <<: *app
-    command: ["python", "-m", "app.cli.ask", "provision", "--scope", "local", "--role", "career_analytics_local"]
+    command: ["python", "-m", "app.cli", "ask", "provision", "--scope", "local", "--role", "career_analytics_local"]
     environment:
       <<: *app-env
       ANALYTICS_ROLE_PASSWORD: ${ANALYTICS_ROLE_PASSWORD:-career_analytics_local_only_2026}
