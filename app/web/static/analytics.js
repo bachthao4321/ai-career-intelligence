@@ -1,5 +1,5 @@
-import { $, api, el, icon, emptyState, loading, busy, jobCard, skillName, warningText, link } from './ui.js?v=20261113-1';
-import { number, sourceName, workplaceName, columnLabel, questionCompletion } from './logic.mjs?v=20261113-1';
+import { $, api, el, icon, emptyState, loading, busy, jobCard, skillName, warningText, link } from './ui.js?v=20261114-1';
+import { number, sourceName, workplaceName, columnLabel, questionCompletion } from './logic.mjs?v=20261114-1';
 
 export function initAnalytics(context) {
   let controller = null;

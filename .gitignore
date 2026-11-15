@@ -35,3 +35,6 @@ data/evaluations/
 .DS_Store
 .idea/
 .vscode/
+
+# Private planning notes
+docs/IMPLEMENTATION_PLAN.md

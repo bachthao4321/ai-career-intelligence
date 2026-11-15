@@ -69,7 +69,7 @@ def valid_basic(settings: Settings, authorization: str) -> bool:
     ) & hmac.compare_digest(password.encode(), settings.demo_password.get_secret_value().encode())
 
 
-def client_hash(request: Request, settings: Settings) -> str:
+def client_address(request: Request, settings: Settings) -> str:
     peer = request.client.host if request.client else "unknown"
     address = peer
     if settings.trusted_proxy_ip and peer == settings.trusted_proxy_ip:
@@ -77,10 +77,14 @@ def client_hash(request: Request, settings: Settings) -> str:
             address = str(ipaddress.ip_address(request.headers.get("x-forwarded-for", "")))
         except ValueError:
             pass  # Invalid/chained headers collapse to the proxy bucket, never a fresh identity.
+    return address
+
+
+def client_hash(request: Request, settings: Settings) -> str:
     assert settings.demo_cookie_secret is not None
     return hmac.new(
         settings.demo_cookie_secret.get_secret_value().encode(),
-        ("client:" + address).encode(),
+        ("client:" + client_address(request, settings)).encode(),
         hashlib.sha256,
     ).hexdigest()
 
@@ -88,7 +92,7 @@ def client_hash(request: Request, settings: Settings) -> str:
 async def reserve_client(engine: AsyncEngine, identity: str, category: str, limit: int) -> bool:
     if limit <= 0:
         return False
-    if category not in {"minute", "llm_day"}:
+    if category not in {"minute", "llm_day", "auth_minute"}:
         raise ValueError("Unknown client quota category")
     async with engine.begin() as connection:
         now = (await connection.execute(select(func.clock_timestamp()))).scalar_one()

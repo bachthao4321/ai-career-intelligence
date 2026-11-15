@@ -1,8 +1,9 @@
-import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261113-1';
-import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261113-1';
-import { initJobs } from './jobs.js?v=20261113-1';
-import { initAnalytics } from './analytics.js?v=20261113-1';
-import { initCV } from './cv.js?v=20261113-1';
+import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261114-1';
+import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261114-1';
+import { initJobs } from './jobs.js?v=20261114-1';
+import { initAnalytics } from './analytics.js?v=20261114-1';
+import { initCV } from './cv.js?v=20261114-1';
+import { initAccount } from './account.js?v=20261114-1';
 
 hydrateIcons();
 // Scroll offsets follow the actual sticky navigation height, including text scaling.
@@ -11,17 +12,19 @@ new ResizeObserver(() => document.documentElement.style.setProperty('--sticky-of
   `${matchMedia('(max-width: 800px)').matches ? Math.ceil(sidebar.getBoundingClientRect().height) + 12 : 0}px`
 )).observe(sidebar);
 let overview = null, detailController = null, refreshing = false;
-const context = { overview: () => overview, openJob };
+const context = { overview: () => overview, openJob, saveButton: job => account.saveButton(job) };
+const account = initAccount(context);
 const jobs = initJobs(context);
 initAnalytics(context);
 initCV(context);
 
 function navigate() {
-  const view = ['jobs', 'analytics', 'cv'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'jobs';
+  const view = ['jobs', 'analytics', 'cv', 'saved'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'jobs';
   document.querySelectorAll('.view').forEach(section => { section.hidden = section.id !== `view-${view}`; });
   document.querySelectorAll('[data-view]').forEach(item => { const active = item.dataset.view === view; item.classList.toggle('active', active); if (active) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current'); });
-  document.title = `${{ jobs: 'Việc làm', analytics: 'Hỏi dữ liệu', cv: 'Đối chiếu CV' }[view]} · CareerLens`;
+  document.title = `${{ jobs: 'Việc làm', analytics: 'Hỏi dữ liệu', cv: 'Đối chiếu CV', saved: 'Việc đã lưu' }[view]} · CareerLens`;
   window.scrollTo({ top: 0, behavior: 'instant' });
+  if (view === 'saved') account.renderSaved();
 }
 window.addEventListener('hashchange', navigate); navigate();
 document.querySelector('.skip-link').addEventListener('click', event => { event.preventDefault(); $('main').focus(); $('main').scrollIntoView({ block: 'start' }); });
@@ -143,6 +146,7 @@ async function openJob(id) {
     const country = el('span', { class: 'job-country detail-country', text: 'Đang tải quốc gia…' });
     const actions = el('div', { class: 'detail-translation' });
     const description = descriptionSection(job, title, actions);
+    actions.prepend(context.saveButton(job));
     const heading = el('div', { class: 'detail-heading' }, avatar(job.company), el('div', { class: 'detail-heading-copy' }, el('p', { class: 'company-name', text: job.company || 'Chưa có tên công ty' }), title), actions);
     const metadata = el('div', { class: 'detail-meta' }, country, meta(job.location || 'Chưa có địa điểm', 'pin'), meta(workplaceName(job.workplace_type), 'briefcase'), deadline, sourceBadge(job), jobPresentation(job, null, deadline, country));
     const sourceLink = link(job.source_url, 'Xem tin tuyển dụng gốc', 'job-source-link');

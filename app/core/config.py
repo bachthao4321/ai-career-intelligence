@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     client_requests_per_minute: int = Field(default=60, ge=1, le=600)
     client_llm_routes_per_day: int = Field(default=10, ge=0, le=100)
     trusted_proxy_ip: str | None = None
+    user_session_days: int = Field(default=30, ge=1, le=90)
+    auth_attempts_per_minute: int = Field(default=10, ge=1, le=100)
 
     @model_validator(mode="after")
     def production_controls(self) -> "Settings":

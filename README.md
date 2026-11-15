@@ -5,8 +5,9 @@ Nền tảng hỗ trợ tìm việc IT, tập trung vào Việt Nam và châu Â
 - **Tìm việc** bằng ngôn ngữ tự nhiên (tiếng Việt, Anh, Thụy Điển).
 - **Hỏi số liệu** thị trường tuyển dụng, ví dụ "Top 10 skills".
 - **Đối chiếu CV** với công việc và chỉ ra kỹ năng còn thiếu.
+- **Lưu việc làm** vào tài khoản để xem lại sau.
 
-Giao diện web **CareerLens** gom cả ba tính năng trên.
+Giao diện web **CareerLens** gom tất cả các tính năng trên.
 
 Stack: Python 3.12, FastAPI, PostgreSQL, Qdrant, LangGraph, ONNX MiniLM (chạy local), Docker Compose.
 
@@ -18,6 +19,7 @@ Stack: Python 3.12, FastAPI, PostgreSQL, Qdrant, LangGraph, ONNX MiniLM (chạy 
 | **Tìm kiếm** | Mặc định **hybrid**: kết hợp từ khóa (BM25) với tìm theo nghĩa (embeddings), trọng số 2 : 1. Nếu vector index chưa sẵn sàng thì tự quay về BM25. | [RETRIEVAL](docs/RETRIEVAL.md) |
 | **Hỏi dữ liệu** (`/ask`) | Định tuyến câu hỏi sang tìm việc, thống kê hoặc yêu cầu hỏi lại cho rõ. Câu hỏi phổ biến chạy theo mẫu có sẵn, không cần model. SQL do model viết phải qua allowlist và chạy bằng tài khoản chỉ đọc. | [ANALYTICS](docs/ANALYTICS.md) |
 | **Đối chiếu CV** | Upload CV dạng PDF có text. Trích kỹ năng, tìm việc phù hợp, chỉ ra kỹ năng job cần mà chưa thấy trong CV. Chạy hoàn toàn local, không lưu file PDF, profile tự hết hạn sau 1 giờ. | [CV_MATCHING](docs/CV_MATCHING.md) |
+| **Tài khoản** | Đăng ký, đăng nhập bằng email và mật khẩu, lưu tối đa 500 việc làm. Mật khẩu băm bằng scrypt, phiên đăng nhập là cookie HttpOnly. | [ACCOUNTS](docs/ACCOUNTS.md) |
 | **Vận hành** | Password gate, quota theo client, cấu hình production (Compose + Caddy), backup và restore. Chưa deploy public. | [OPERATIONS](docs/OPERATIONS.md) |
 
 ## Chạy nhanh
@@ -95,10 +97,10 @@ Integration test chỉ ghi vào schema tạm, nhưng đừng chạy với databa
 
 ## Tài liệu
 
-- [Kế hoạch và milestones](docs/IMPLEMENTATION_PLAN.md) · [Cài đặt local](docs/DEVELOPMENT.md)
+- [Cài đặt local](docs/DEVELOPMENT.md)
 - Nạp dữ liệu: [INGESTION](docs/INGESTION.md) · [Nguồn Việt Nam](docs/VIETNAM_SOURCES.md) · [Bổ sung dữ liệu](docs/DATA_REFRESH.md)
 - Tìm kiếm: [RETRIEVAL](docs/RETRIEVAL.md) · [Reranker, retry, quota](docs/RELIABILITY.md)
 - Hỏi dữ liệu: [ANALYTICS](docs/ANALYTICS.md) · [Qwen LAN](docs/QWEN_LAN_VALIDATION.md)
-- CV: [CV_MATCHING](docs/CV_MATCHING.md) · Giao diện: [PLATFORM_UI](docs/PLATFORM_UI.md)
+- CV: [CV_MATCHING](docs/CV_MATCHING.md) · Tài khoản: [ACCOUNTS](docs/ACCOUNTS.md) · Giao diện: [PLATFORM_UI](docs/PLATFORM_UI.md)
 - Vận hành: [OPERATIONS](docs/OPERATIONS.md)
 - Kết quả kiểm chứng: [M1](docs/M1_VALIDATION.md) · [M2](docs/M2_VALIDATION.md) · [M3](docs/M3_VALIDATION.md) · [M4](docs/M4_VALIDATION.md) · [M5](docs/M5_VALIDATION.md) · [M6](docs/M6_VALIDATION.md)
