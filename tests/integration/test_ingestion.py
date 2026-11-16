@@ -20,11 +20,12 @@ from app.db.models import (
     LlmDailyUsage,
     SkillAlias,
 )
-from app.ingestion.contracts import JobRecord
-from app.ingestion.llm import DeepSeekExtractor, reserve_daily_call
+from app.ingestion.model_extraction import DeepSeekExtractor
 from app.ingestion.reporting import build_report
 from app.ingestion.service import import_records, review_alias
 from app.main import create_app
+from app.repositories.quotas import reserve_daily_call
+from app.schemas.ingestion import JobRecord
 
 pytestmark = [
     pytest.mark.integration,

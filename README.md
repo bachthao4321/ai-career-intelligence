@@ -22,6 +22,34 @@ Stack: Python 3.12, FastAPI, PostgreSQL, Qdrant, LangGraph, ONNX MiniLM (chạy 
 | **Tài khoản** | Đăng ký, đăng nhập bằng email và mật khẩu, lưu tối đa 500 việc làm. Mật khẩu băm bằng scrypt, phiên đăng nhập là cookie HttpOnly. |
 | **Vận hành** | Password gate, quota theo client, cấu hình production (Compose + Caddy), backup và restore. Chưa deploy public. |
 
+## Kiến trúc
+
+```
+                 ┌──────────────── FastAPI (app/main.py) ────────────────┐
+ Browser / curl ─▶ middleware: host check → rate limit → demo login     │
+                 │        │                                              │
+                 │   api/routes  (parse request, map lỗi → HTTP code)    │
+                 │        │ Depends(api/deps)                            │
+                 │   services    (business logic: search, ask, cv, ...)  │
+                 │      │                    │                           │
+                 │ repositories (SQL)   integrations (Qdrant, LLM, ONNX) │
+                 └──────┼────────────────────┼───────────────────────────┘
+                   PostgreSQL             Qdrant / model API
+```
+
+Mỗi tầng chỉ gọi xuống tầng dưới, không gọi ngược lên.
+
+| Thư mục | Vai trò |
+|---|---|
+| `app/api/` | Router mỏng và `deps.py`, nơi duy nhất lấy settings, DB session và service |
+| `app/schemas/` | Pydantic model cho request và response |
+| `app/services/` | Business logic: `search/`, `ask/` (LangGraph agent), `cv/`, `accounts`, `jobs`, `translation/` |
+| `app/repositories/` | Truy vấn SQLAlchemy và quota. Mọi truy vấn job đều đi qua bộ lọc phạm vi nguồn |
+| `app/integrations/` | Client bên ngoài: Qdrant, ONNX embeddings, LLM runtime |
+| `app/ingestion/` | Pipeline nạp dữ liệu: nguồn → chuẩn hóa → trích kỹ năng và facts → lưu |
+| `app/core/` | Config, middleware bảo mật, container khởi tạo service |
+| `app/cli/` | CLI cho người vận hành: `python -m app.cli <group> <command>` |
+
 ## Chạy nhanh
 
 Cần Docker Desktop (hoặc Docker Engine) và Docker Compose v2.
@@ -47,21 +75,24 @@ Checkout mới chưa có tin tuyển dụng nào. Có thể thử bằng dữ li
 uv sync --frozen
 
 # Dữ liệu giả lập
-uv run --frozen python -m app.ingestion.cli import examples/jobs.synthetic.json
+uv run --frozen python -m app.cli ingest import examples/jobs.synthetic.json
 
 # Dữ liệu thật từ JobTech: fetch in ra đường dẫn snapshot để import
-uv run --frozen python -m app.ingestion.cli fetch jobtech --limit 150
-uv run --frozen python -m app.ingestion.cli import data/raw/jobtech-YYYY-MM-DD.json
+uv run --frozen python -m app.cli ingest fetch jobtech --limit 150
+uv run --frozen python -m app.cli ingest import data/raw/jobtech-YYYY-MM-DD.json
+
+# Trang tuyển dụng của các công ty có văn phòng ở Việt Nam
+uv run --frozen python -m app.cli ingest fetch employers
 
 # Bổ sung thông tin (seniority, lương...) cho các tin đã nhập trước đó
-uv run --frozen python -m app.ingestion.cli enrich
+uv run --frozen python -m app.cli ingest enrich
 ```
 
 Search theo nghĩa (dense hoặc hybrid) cần tải model và tạo index:
 
 ```bash
-uv run --frozen python -m app.retrieval.cli download-model
-uv run --frozen python -m app.retrieval.cli index
+uv run --frozen python -m app.cli search download-model
+uv run --frozen python -m app.cli search index
 ```
 
 ## Ví dụ API

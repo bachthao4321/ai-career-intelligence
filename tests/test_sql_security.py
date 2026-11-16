@@ -1,6 +1,6 @@
 import pytest
 
-from app.security.sql import UnsafeSQL, validate_sql
+from app.core.security.sql import UnsafeSQL, validate_sql
 
 
 @pytest.mark.parametrize(

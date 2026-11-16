@@ -5,11 +5,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.retrieval.contracts import RankedHit, SearchRequest
-from app.retrieval.documents import deduplicate
-from app.retrieval.embeddings import EmbeddingUnavailable, LocalMiniLM, validate_vectors
-from app.retrieval.evaluation import retrieval_metrics
-from app.retrieval.lexical import bm25, reciprocal_rank_fusion, tokenize
+from app.integrations.embeddings import EmbeddingUnavailable, LocalMiniLM, validate_vectors
+from app.schemas.search import RankedHit, SearchRequest
+from app.services.search.documents import deduplicate
+from app.services.search.lexical import bm25, reciprocal_rank_fusion, tokenize
 from tests.retrieval_helpers import document
 
 
@@ -127,16 +126,6 @@ def test_mean_pooling_ignores_padding_and_normalizes_vectors(tmp_path: Path) -> 
     assert batch[0][0] / batch[0][1] == pytest.approx(1)
     assert batch[1][0] / batch[1][1] == pytest.approx(2)
     assert sum(value * value for value in batch[1]) == pytest.approx(1)
-
-
-def test_metrics_have_correct_small_relevance_set_ceiling() -> None:
-    metrics = retrieval_metrics(["irrelevant", "good"], {"good": 1})
-    assert metrics["precision_at_5"] == 0.2
-    assert metrics["precision_ceiling_at_5"] == 0.2
-    assert metrics["recall_at_5"] == 1
-    assert metrics["ndcg_at_5"] == pytest.approx(1 / math.log2(3))
-    with pytest.raises(ValueError):
-        retrieval_metrics(["good", "good"], {"good": 1})
 
 
 @pytest.mark.parametrize(

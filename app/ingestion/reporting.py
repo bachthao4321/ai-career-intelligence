@@ -3,9 +3,9 @@ from typing import Any, cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
+from app.core.policies import local_research_only
 from app.db.models import AliasCandidate, ExtractionRun, Job, JobSkill, JobSnapshot
-from app.ingestion.contracts import EvidenceField
-from app.ingestion.policies import local_research_only
+from app.schemas.ingestion import EvidenceField
 
 
 async def build_report(engine: AsyncEngine, *, sample_size: int = 10) -> dict[str, Any]:

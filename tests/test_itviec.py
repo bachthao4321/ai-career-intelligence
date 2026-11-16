@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
+from app.core.policies import local_research_only
 from app.ingestion.itviec import adapt_itviec, canonical_job_url, fetch_itviec, job_posting
-from app.ingestion.policies import local_research_only
 from app.ingestion.sources import load_records
 
 URL = "https://itviec.com/it-jobs/synthetic-python-developer-fixture-0001"

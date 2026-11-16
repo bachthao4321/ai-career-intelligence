@@ -6,14 +6,13 @@ salary needs both a salary keyword and a currency in the same sentence.
 """
 
 import re
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from app.ingestion.contracts import JobRecord
-from app.ingestion.presentation import application_deadline
 from app.ingestion.requirements import classify_requirement
+from app.schemas.ingestion import JobRecord
 
 FACTS_VERSION = "facts-v1"
 Seniority = Literal["intern", "junior", "mid", "senior", "lead", "unknown"]
@@ -225,3 +224,22 @@ def facts_from(title: str, description: str, source: str, raw_payload: dict[str,
 
 def extract_facts(record: JobRecord) -> JobFacts:
     return facts_from(record.title, record.description, record.source, record.raw_payload)
+
+
+def application_deadline(source: str, raw: dict[str, Any]) -> date | None:
+    """Return the source's calendar date without inventing a time zone."""
+    value: Any = None
+    if source in {"jobtech", "employer_ats"}:
+        value = raw.get("application_deadline")
+    elif source in {"itviec", "topcv"}:
+        posting = raw.get("posting")
+        if isinstance(posting, dict):
+            value = posting.get("validThrough")
+    if not isinstance(value, str) or not value or len(value) > 40:
+        return None
+    try:
+        if len(value) == 10:
+            return date.fromisoformat(value)
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+    except ValueError:
+        return None

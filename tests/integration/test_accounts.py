@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import Settings
 from app.db.models import Job, SavedJob, User, UserSession
-from app.ingestion.contracts import JobRecord
 from app.ingestion.service import import_records
 from app.main import create_app
+from app.schemas.ingestion import JobRecord
 
 pytestmark = [
     pytest.mark.integration,

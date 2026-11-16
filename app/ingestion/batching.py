@@ -6,7 +6,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.ingestion.contracts import (
+from app.core.policies import local_research_only
+from app.ingestion.extraction import EXTRACTION_VERSION, SkillCatalog, validate_mentions
+from app.integrations.llm.runtime import CallBudget, ModelFailure, ModelRuntime
+from app.schemas.ingestion import (
     EVIDENCE_FIELDS,
     ExtractionOutput,
     JobRecord,
@@ -14,9 +17,6 @@ from app.ingestion.contracts import (
     alias_key,
     json_hash,
 )
-from app.ingestion.extraction import EXTRACTION_VERSION, SkillCatalog, validate_mentions
-from app.ingestion.policies import local_research_only
-from app.llm.runtime import CallBudget, ModelFailure, ModelRuntime
 
 PROMPT = (
     "Extract explicitly mentioned technical skills from each supplied public job. "

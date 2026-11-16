@@ -9,12 +9,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
-from app.cv.contracts import MAX_PDF_BYTES, CVError, CVPage, MatchRequest
-from app.cv.extraction import extract_skills
-from app.cv.matching import match_jobs
-from app.cv.parser import parse_pdf
 from app.main import create_app
-from app.retrieval.contracts import SourceSkillEvidence
+from app.schemas.cv import MAX_PDF_BYTES, CVError, CVPage, MatchRequest
+from app.schemas.search import SourceSkillEvidence
+from app.services.cv.extraction import extract_skills
+from app.services.cv.matching import match_jobs
+from app.services.cv.parser import parse_pdf
 from tests.cv_helpers import SYNTHETIC_CV, pdf_bytes
 from tests.retrieval_helpers import document
 
@@ -94,9 +94,9 @@ async def test_worker_timeout_or_cancel_kills_and_reaps_process(
 
     process.communicate = communicate
     monkeypatch.setattr(
-        "app.cv.parser.asyncio.create_subprocess_exec", AsyncMock(return_value=process)
+        "app.services.cv.parser.asyncio.create_subprocess_exec", AsyncMock(return_value=process)
     )
-    monkeypatch.setattr("app.cv.parser.PARSER_TIMEOUT_SECONDS", 0.01 if not cancel else 10)
+    monkeypatch.setattr("app.services.cv.parser.PARSER_TIMEOUT_SECONDS", 0.01 if not cancel else 10)
     task = asyncio.create_task(parse_pdf(b"%PDF-1.7"))
     await started.wait()
     if cancel:
@@ -118,7 +118,7 @@ async def test_parent_revalidates_worker_evidence_and_does_not_pass_secrets(
     process = Mock(returncode=0)
     process.communicate = AsyncMock(return_value=(json.dumps({"profile": profile}).encode(), b""))
     spawn = AsyncMock(return_value=process)
-    monkeypatch.setattr("app.cv.parser.asyncio.create_subprocess_exec", spawn)
+    monkeypatch.setattr("app.services.cv.parser.asyncio.create_subprocess_exec", spawn)
     monkeypatch.setenv("AGENT_MODEL_API_KEY", "private-test-key")
     with pytest.raises(CVError, match="invalid_parser_evidence"):
         await parse_pdf(b"%PDF-1.7")
@@ -228,6 +228,6 @@ def test_stream_limit_without_content_length_and_parser_busy(settings: Settings)
             content=iter([b"%PDF-", b"a" * MAX_PDF_BYTES]),
         )
         assert response.status_code == 413
-        client.app.state.cv_service.upload_slots = asyncio.Semaphore(0)
+        client.app.state.services.cv.upload_slots = asyncio.Semaphore(0)
         response = client.post("/cv", headers={"content-type": "application/pdf"}, content=b"%PDF-")
         assert response.status_code == 503

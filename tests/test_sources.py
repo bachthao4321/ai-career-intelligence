@@ -6,7 +6,6 @@ from pathlib import Path
 import httpx
 import pytest
 
-from app.ingestion.contracts import JobRecord
 from app.ingestion.sources import (
     OutOfScopeRecord,
     adapt_jobtech,
@@ -15,6 +14,7 @@ from app.ingestion.sources import (
     fetch_remotive,
     load_records,
 )
+from app.schemas.ingestion import JobRecord
 
 
 def jobtech_row() -> dict:
@@ -185,7 +185,7 @@ async def test_jobtech_rejects_out_of_range_window_before_fetch(
 async def test_cli_uses_separate_snapshot_paths_for_jobtech_windows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from app.ingestion import cli
+    from app.cli import ingest as cli
 
     monkeypatch.chdir(tmp_path)
     seen = []
@@ -216,7 +216,7 @@ async def test_cli_uses_separate_snapshot_paths_for_jobtech_windows(
 
 
 async def test_cli_rejects_offsets_for_sources_without_pagination() -> None:
-    from app.ingestion.cli import parser, run
+    from app.cli.ingest import parser, run
 
     with pytest.raises(ValueError, match="Only JobTech"):
         await run(parser().parse_args(["fetch", "remotive", "--offset", "200"]))

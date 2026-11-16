@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from app.core.config import Settings
-from app.ingestion.description_translation import (
+from app.services.translation.descriptions import (
     DescriptionTranslator,
     detect_language,
     split_description,
@@ -40,7 +40,7 @@ async def test_translation_is_complete_cached_and_budgeted(
     monkeypatch: pytest.MonkeyPatch, settings: Settings
 ) -> None:
     reserve = AsyncMock(return_value=True)
-    monkeypatch.setattr("app.ingestion.description_translation.reserve_daily_call", reserve)
+    monkeypatch.setattr("app.services.translation.descriptions.reserve_daily_call", reserve)
     requests = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -88,7 +88,7 @@ async def test_failure_or_quota_never_return_partial_translation(
     monkeypatch: pytest.MonkeyPatch, settings: Settings
 ) -> None:
     reserve = AsyncMock(side_effect=[True, False])
-    monkeypatch.setattr("app.ingestion.description_translation.reserve_daily_call", reserve)
+    monkeypatch.setattr("app.services.translation.descriptions.reserve_daily_call", reserve)
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -110,12 +110,10 @@ async def test_failure_or_quota_never_return_partial_translation(
     assert not translator._cache
 
 
-async def test_job_translation_returns_title_and_description_together(
-    monkeypatch: pytest.MonkeyPatch, settings: Settings
-) -> None:
+async def test_job_translation_returns_title_and_description_together() -> None:
     from types import SimpleNamespace
 
-    from app.api.jobs import DescriptionRequest, translate_description
+    from app.services.jobs import translate_job
 
     job = SimpleNamespace(
         title="Unreviewed IT role",
@@ -123,31 +121,18 @@ async def test_job_translation_returns_title_and_description_together(
         source="jobtech",
         source_url="https://example.com/job",
     )
-    session = SimpleNamespace(scalar=AsyncMock(return_value=job))
     translator = SimpleNamespace(translate=AsyncMock(side_effect=["Vai trò IT", "Mô tả đã dịch"]))
-    request = SimpleNamespace(
-        app=SimpleNamespace(
-            state=SimpleNamespace(
-                app_env="test", settings=settings, description_translator=translator
-            )
-        )
-    )
-    monkeypatch.setattr("app.api.jobs.paid_client_gate", AsyncMock())
-    result = await translate_description(
-        request, "00000000-0000-0000-0000-000000000001", DescriptionRequest(target="vi"), session
-    )  # type: ignore[arg-type]
+    result = await translate_job(job, "vi", translator)  # type: ignore[arg-type]
     assert result.title == "Vai trò IT"
     assert result.title_source == "machine"
     assert result.text == "Mô tả đã dịch"
     assert translator.translate.await_count == 2
 
 
-async def test_reviewed_title_reused_without_extra_model_call(
-    monkeypatch: pytest.MonkeyPatch, settings: Settings
-) -> None:
+async def test_reviewed_title_reused_without_extra_model_call() -> None:
     from types import SimpleNamespace
 
-    from app.api.jobs import DescriptionRequest, translate_description
+    from app.services.jobs import translate_job
 
     job = SimpleNamespace(
         title="Backend Developer",
@@ -155,19 +140,8 @@ async def test_reviewed_title_reused_without_extra_model_call(
         source="jobtech",
         source_url="https://example.com/job",
     )
-    session = SimpleNamespace(scalar=AsyncMock(return_value=job))
     translator = SimpleNamespace(translate=AsyncMock(return_value="Mô tả đã dịch"))
-    request = SimpleNamespace(
-        app=SimpleNamespace(
-            state=SimpleNamespace(
-                app_env="test", settings=settings, description_translator=translator
-            )
-        )
-    )
-    monkeypatch.setattr("app.api.jobs.paid_client_gate", AsyncMock())
-    result = await translate_description(
-        request, "00000000-0000-0000-0000-000000000001", DescriptionRequest(target="vi"), session
-    )  # type: ignore[arg-type]
+    result = await translate_job(job, "vi", translator)  # type: ignore[arg-type]
     assert result.title == "Lập trình viên Backend"
     assert result.title_source == "reviewed"
     assert translator.translate.await_count == 1

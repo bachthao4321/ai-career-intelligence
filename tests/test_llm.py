@@ -5,9 +5,9 @@ import pytest
 from pydantic import SecretStr
 
 from app.core.config import Settings
-from app.ingestion.contracts import JobRecord
 from app.ingestion.extraction import SkillCatalog
-from app.ingestion.llm import DeepSeekExtractor, ExtractionError
+from app.ingestion.model_extraction import DeepSeekExtractor, ExtractionError
+from app.schemas.ingestion import JobRecord
 
 
 @pytest.fixture

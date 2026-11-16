@@ -13,13 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from app.core.config import Settings
 from app.db.models import IndexingRun, Job, VectorIndexState
-from app.ingestion.contracts import JobRecord
 from app.ingestion.service import import_records
+from app.integrations.qdrant import QdrantStore, VectorBackendUnavailable
 from app.main import create_app
-from app.retrieval.contracts import SearchFilters, SearchRequest
-from app.retrieval.indexing import IndexAlreadyRunning, index_documents, namespace
-from app.retrieval.qdrant import QdrantStore, VectorBackendUnavailable
-from app.retrieval.service import DenseSearchUnavailable, SearchService
+from app.schemas.ingestion import JobRecord
+from app.schemas.search import SearchFilters, SearchRequest
+from app.services.search.indexing import IndexAlreadyRunning, index_documents, namespace
+from app.services.search.service import DenseSearchUnavailable, SearchService
 from tests.retrieval_helpers import TestEmbedder
 
 pytestmark = [

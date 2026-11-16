@@ -4,8 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.config import Settings
-from app.ingestion.presentation import country_metadata, title_key, translation_signature
-from app.ingestion.translate import trusted_private_target, validate_batch
+from app.services.translation.presentation import country_metadata, title_key, translation_signature
+from app.services.translation.titles import trusted_private_target, validate_batch
 
 
 @pytest.mark.parametrize(
@@ -76,7 +76,7 @@ def test_private_titles_only_go_to_explicit_local_model(settings: Settings) -> N
 
 
 def test_reviewed_it_titles_preserve_role_terms_and_technology() -> None:
-    from app.ingestion.reviewed_titles import REVIEWED_TITLES
+    from app.services.translation.reviewed_titles import REVIEWED_TITLES
 
     en, vi = REVIEWED_TITLES["Professional Front-End Developer React & TypeScript - 20593"]
     assert en == "Professional Front-End Developer React & TypeScript - 20593"
@@ -103,7 +103,7 @@ def test_reviewed_it_titles_preserve_role_terms_and_technology() -> None:
 def test_application_deadline_uses_explicit_trusted_source_date(
     source: str, raw: dict, expected: str | None
 ) -> None:
-    from app.ingestion.presentation import application_deadline
+    from app.ingestion.facts import application_deadline
 
     value = application_deadline(source, raw)
     assert (value.isoformat() if value else None) == expected

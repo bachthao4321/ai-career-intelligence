@@ -7,8 +7,8 @@ from pydantic import SecretStr, ValidationError
 from starlette.requests import Request
 
 from app.core.config import Settings
+from app.core.security import demo
 from app.main import create_app
-from app.security import demo
 
 
 def secured(settings: Settings, **updates) -> Settings:
@@ -107,7 +107,7 @@ def test_gate_protects_pages_apis_docs_and_preserves_health(settings: Settings) 
 
 def test_rate_limit_is_before_auth_and_fails_closed(settings: Settings, monkeypatch) -> None:
     quota = AsyncMock(side_effect=[True, False])
-    monkeypatch.setattr("app.main.reserve_client", quota)
+    monkeypatch.setattr("app.core.middleware.reserve_client", quota)
     config = secured(settings, client_limits_enabled=True)
     with TestClient(create_app(config)) as client:
         assert client.get("/").status_code == 401

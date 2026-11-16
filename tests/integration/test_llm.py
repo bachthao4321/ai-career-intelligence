@@ -13,10 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from app.core.config import Settings
 from app.db.models import ExtractionRun, LlmAttempt, LlmDailyUsage, LlmDecision
 from app.ingestion.batching import BatchExtractor
-from app.ingestion.contracts import JobRecord
 from app.ingestion.service import import_records
-from app.llm.runtime import CallBudget, ModelFailure, ModelRuntime
+from app.integrations.llm.runtime import CallBudget, ModelFailure, ModelRuntime
 from app.main import create_app
+from app.schemas.ingestion import JobRecord
 from tests.retrieval_helpers import TestEmbedder
 from tests.test_model_runtime import completion
 
@@ -280,7 +280,7 @@ async def test_search_api_rerank_is_opt_in_and_validated_cache_is_reused(
 
     def check():
         with TestClient(create_app(configured, embedder=TestEmbedder())) as client:
-            client.app.state.search_service.reranker.runtime.transport = httpx.MockTransport(
+            client.app.state.services.search.reranker.runtime.transport = httpx.MockTransport(
                 handler
             )
             baseline = client.post("/search", json={"query": "Python"}).json()
