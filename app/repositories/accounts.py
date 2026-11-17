@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -48,15 +48,15 @@ class AccountRepository:
 
     async def saved_jobs(
         self, user_id: uuid.UUID, visible: ColumnElement[bool], limit: int
-    ) -> list[tuple[Job, datetime]]:
+    ) -> list[tuple[Job, SavedJob]]:
         rows = await self.session.execute(
-            select(Job, SavedJob.created_at)
+            select(Job, SavedJob)
             .join(SavedJob, SavedJob.job_id == Job.id)
             .where(SavedJob.user_id == user_id, visible)
             .order_by(SavedJob.created_at.desc(), Job.id)
             .limit(limit)
         )
-        return [(job, saved_at) for job, saved_at in rows.all()]
+        return [(job, saved) for job, saved in rows.all()]
 
     async def is_saved(self, user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
         return await self.session.get(SavedJob, (user_id, job_id)) is not None
@@ -76,6 +76,16 @@ class AccountRepository:
         await self.session.execute(
             delete(SavedJob).where(SavedJob.user_id == user_id, SavedJob.job_id == job_id)
         )
+
+    async def set_status(self, user_id: uuid.UUID, job_id: uuid.UUID, status: str) -> bool:
+        """Returns False when the job is not in the user's saved list."""
+        result = await self.session.execute(
+            update(SavedJob)
+            .where(SavedJob.user_id == user_id, SavedJob.job_id == job_id)
+            .values(status=status, status_updated_at=func.now())
+            .returning(SavedJob.job_id)
+        )
+        return result.first() is not None
 
     async def commit(self) -> None:
         await self.session.commit()

@@ -1,9 +1,9 @@
-import { $, api, el, icon, jobCard, emptyState, loading, openDialog, toast, busy } from './ui.js?v=20261114-1';
-import { credentialProblem } from './logic.mjs?v=20261114-1';
+import { $, api, el, icon, jobCard, emptyState, loading, openDialog, toast, busy } from './ui.js?v=20261117-1';
+import { credentialProblem, date, APPLICATION_STATUSES, statusName, statusCounts } from './logic.mjs?v=20261117-1';
 
 // Accounts use an HttpOnly session cookie; this module only tracks who is signed in and which jobs are saved.
 export function initAccount(context) {
-  let user = null, mode = 'login', pendingSave = null;
+  let user = null, mode = 'login', pendingSave = null, filter = 'all', items = [];
   const saved = new Set();
   const buttons = new Map();
 
@@ -53,6 +53,45 @@ export function initAccount(context) {
     return data.items;
   }
 
+  function statusControl(item) {
+    const job = item.job;
+    const select = el('select', { class: 'status-select', 'aria-label': `Trạng thái ứng tuyển: ${job.title}` },
+      APPLICATION_STATUSES.map(([key, label]) => el('option', { value: key, text: label })));
+    select.value = item.status;
+    const stamp = el('span', { class: 'status-stamp', text: `Cập nhật ${date(item.status_updated_at)}` });
+    select.addEventListener('change', async () => {
+      const previous = item.status, next = select.value;
+      item.status = next; select.disabled = true;
+      try {
+        await api(`/me/saved-jobs/${encodeURIComponent(job.id)}`, { method: 'PATCH', json: { status: next } });
+        item.status_updated_at = new Date().toISOString();
+        toast(`Đã chuyển sang “${statusName(next)}”.`);
+        drawSaved();
+      } catch (error) {
+        item.status = previous; select.value = previous;
+        if (error.status === 401) { setUser(null); renderSaved(); return; }
+        toast(error.message);
+      } finally { select.disabled = false; }
+    });
+    return el('div', { class: `status-row status-${item.status}` }, el('label', { class: 'status-label' }, el('span', { text: 'Trạng thái' }), select), stamp);
+  }
+
+  function drawSaved() {
+    const host = $('saved-jobs'), counts = statusCounts(items);
+    if (filter !== 'all' && !counts[filter]) filter = 'all';
+    const chip = (key, label, count) => el('button', { class: 'status-filter', type: 'button', 'aria-pressed': String(filter === key), onclick: () => { filter = key; drawSaved(); } }, label, el('span', { class: 'status-filter-count', text: String(count) }));
+    const filters = el('div', { class: 'status-filters', role: 'group', 'aria-label': 'Lọc theo trạng thái ứng tuyển' },
+      chip('all', 'Tất cả', items.length), APPLICATION_STATUSES.map(([key, label]) => chip(key, label, counts[key])));
+    const shown = filter === 'all' ? items : items.filter(item => item.status === filter);
+    const cards = shown.map(item => {
+      const card = jobCard(item.job, context);
+      card.classList.add('saved-card');
+      card.prepend(statusControl(item));
+      return card;
+    });
+    host.replaceChildren(filters, ...cards);
+  }
+
   async function renderSaved() {
     const host = $('saved-jobs');
     if (!user) {
@@ -61,9 +100,10 @@ export function initAccount(context) {
     }
     host.replaceChildren(loading('Đang tải việc đã lưu…'));
     try {
-      const items = await loadSaved();
+      items = await loadSaved();
       $('saved-count').textContent = String(items.length);
-      host.replaceChildren(...(items.length ? items.map(item => jobCard(item.job, context)) : [emptyState('Chưa lưu việc làm nào', 'Bấm “Lưu” trên một tin tuyển dụng để thêm vào đây.', 'bookmark', el('a', { class: 'button secondary', href: '#jobs' }, 'Tìm việc làm'))]));
+      if (!items.length) { host.replaceChildren(emptyState('Chưa lưu việc làm nào', 'Bấm “Lưu” trên một tin tuyển dụng để thêm vào đây.', 'bookmark', el('a', { class: 'button secondary', href: '#jobs' }, 'Tìm việc làm'))); return; }
+      drawSaved();
     } catch (error) {
       if (error.status === 401) { setUser(null); renderSaved(); return; }
       host.replaceChildren(emptyState('Chưa tải được việc đã lưu', error.message, 'info'));

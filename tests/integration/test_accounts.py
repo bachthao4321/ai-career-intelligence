@@ -73,6 +73,21 @@ async def test_register_login_save_and_isolation(
             assert client.post("/auth/logout", headers=cross).status_code == 403
             saved = client.get("/me/saved-jobs").json()["items"]
             assert [item["job"]["id"] for item in saved] == [job_id]
+            assert saved[0]["status"] == "saved"
+
+            status_url = f"/me/saved-jobs/{job_id}"
+            assert client.patch(status_url, json={"status": "applied"}).status_code == 204
+            assert client.get("/me/saved-jobs").json()["items"][0]["status"] == "applied"
+            # Saving again is idempotent and keeps the pipeline position.
+            assert client.put(status_url).status_code == 204
+            assert client.get("/me/saved-jobs").json()["items"][0]["status"] == "applied"
+            assert client.patch(status_url, json={"status": "hired"}).status_code == 422
+            assert client.patch(status_url, json={"status": "offer", "x": 1}).status_code == 422
+            unknown_job = f"/me/saved-jobs/{uuid.uuid4()}"
+            assert client.patch(unknown_job, json={"status": "offer"}).status_code == 404
+            assert (
+                client.patch(status_url, json={"status": "offer"}, headers=evil).status_code == 403
+            )
 
             assert client.post("/auth/logout").status_code == 204
             assert client.get("/auth/me").status_code == 401
@@ -89,6 +104,11 @@ async def test_register_login_save_and_isolation(
             other_account = {"email": "bo@example.com", "password": "another secret"}
             assert other.post("/auth/register", json=other_account).status_code == 201
             assert other.get("/me/saved-jobs").json()["items"] == []
+            # Another user's saved job is not theirs to move.
+            assert (
+                other.patch(f"/me/saved-jobs/{job_id}", json={"status": "rejected"}).status_code
+                == 404
+            )
             assert other.delete(f"/me/saved-jobs/{job_id}").status_code == 204
             other.cookies.clear()
             other.cookies.set("career_user", "x" * 43)
@@ -104,6 +124,7 @@ async def test_register_login_save_and_isolation(
         tokens = (await connection.execute(select(UserSession.token_hash))).scalars().all()
         assert all(len(token) == 64 for token in tokens)
         assert await connection.scalar(select(func.count()).select_from(SavedJob)) == 1
+        assert await connection.scalar(select(SavedJob.status)) == "applied"
 
 
 async def test_unsave_delete_account_and_rate_limit(

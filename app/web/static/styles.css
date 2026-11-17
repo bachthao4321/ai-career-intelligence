@@ -825,3 +825,20 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
   .navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
   .navigation .nav-item { justify-content: center; }
 }
+
+/* Application status on saved jobs */
+.status-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.status-filter { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font-size: .8125rem; }
+.status-filter:hover { background: var(--sage); }
+.status-filter[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
+.status-filter-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: .75rem; text-align: center; }
+.status-filter[aria-pressed="true"] .status-filter-count { background: #ffffff2e; color: #fff; }
+.status-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; padding: 0 0 12px 10px; border-bottom: 1px solid var(--line); border-left: 3px solid var(--status-tone, var(--line)); }
+.status-label { display: inline-flex; align-items: center; gap: 8px; font-size: .8125rem; font-weight: 600; color: var(--ink); }
+.status-select { min-height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: .875rem; }
+.status-stamp { font-size: .75rem; color: var(--muted); }
+.status-saved { --status-tone: #a5b694; }
+.status-applied { --status-tone: #4f7fb8; }
+.status-interviewing { --status-tone: #b8862f; }
+.status-offer { --status-tone: #2f8a57; }
+.status-rejected { --status-tone: #a8564d; }

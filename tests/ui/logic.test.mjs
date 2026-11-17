@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName, credentialProblem } from '../../app/web/static/logic.mjs';
+import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName, credentialProblem, statusCounts, statusName, APPLICATION_STATUSES } from '../../app/web/static/logic.mjs';
 
 test('source links allow only credential-free HTTP(S), including hostile schemes', () => {
   for (const url of ['javascript:alert(1)', 'data:text/html,<script>x</script>', 'file:///etc/passwd', '//evil.test', 'https://user:secret@example.com', 'not a url']) assert.equal(safeUrl(url), null);
@@ -78,4 +78,11 @@ test('account form checks email shape and password length before sending', () =>
   for (const email of ['ana', 'ana@example', 'a b@example.com', '@example.com', 'ana@@example.com']) assert.match(credentialProblem(email, '12345678'), /email/);
   assert.match(credentialProblem('ana@example.com', '1234567'), /8 ký tự/);
   assert.match(credentialProblem('ana@example.com', 'x'.repeat(129)), /128/);
+});
+
+test('application status helpers count known states and label them', () => {
+  assert.deepEqual(APPLICATION_STATUSES.map(([key]) => key), ['saved', 'applied', 'interviewing', 'offer', 'rejected']);
+  assert.deepEqual(statusCounts([{ status: 'applied' }, { status: 'applied' }, { status: 'offer' }, { status: 'bogus' }]), { saved: 0, applied: 2, interviewing: 0, offer: 1, rejected: 0 });
+  assert.equal(statusName('interviewing'), 'Phỏng vấn');
+  assert.equal(statusName('unknown'), 'Đã lưu');
 });

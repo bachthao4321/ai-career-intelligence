@@ -1,6 +1,7 @@
 import re
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -8,6 +9,8 @@ from app.schemas.jobs import JobSummary
 
 EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s.]+(\.[^@\s.]+)+$")
 MAX_SAVED_JOBS = 500
+# Order is the application pipeline; the database CHECK constraint mirrors it.
+ApplicationStatus = Literal["saved", "applied", "interviewing", "offer", "rejected"]
 
 
 class Credentials(BaseModel):
@@ -34,6 +37,13 @@ class UserOut(BaseModel):
 class SavedJobOut(BaseModel):
     job: JobSummary
     saved_at: datetime
+    status: ApplicationStatus
+    status_updated_at: datetime
+
+
+class StatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: ApplicationStatus
 
 
 class SavedJobList(BaseModel):

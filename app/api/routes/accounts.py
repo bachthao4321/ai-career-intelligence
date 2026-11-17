@@ -11,11 +11,12 @@ from app.api.deps import (
 )
 from app.core.config import Settings
 from app.db.models import User
-from app.schemas.accounts import Credentials, SavedJobList, UserOut
+from app.schemas.accounts import Credentials, SavedJobList, StatusUpdate, UserOut
 from app.services.accounts import (
     EmailTaken,
     InvalidCredentials,
     JobNotFound,
+    NotSaved,
     SavedLimitReached,
     session_cookie,
 )
@@ -110,4 +111,15 @@ async def save_job(job_id: uuid.UUID, user: CurrentUser, accounts: AccountServic
 @saved.delete("/{job_id}", status_code=204, dependencies=guarded)
 async def unsave_job(job_id: uuid.UUID, user: CurrentUser, accounts: AccountServiceDep) -> Response:
     await accounts.unsave_job(user, job_id)
+    return Response(status_code=204)
+
+
+@saved.patch("/{job_id}", status_code=204, dependencies=guarded)
+async def set_status(
+    job_id: uuid.UUID, body: StatusUpdate, user: CurrentUser, accounts: AccountServiceDep
+) -> Response:
+    try:
+        await accounts.set_status(user, job_id, body.status)
+    except NotSaved as exc:
+        raise HTTPException(404, "Job is not saved") from exc
     return Response(status_code=204)
