@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.cli.refresh import PUBLIC_SOURCES, parse_sources, refresh
 from app.core.config import Settings
 from app.db.models import AliasCandidate
 from app.db.session import create_engine
@@ -45,6 +46,11 @@ def parser() -> argparse.ArgumentParser:
     report = commands.add_parser("report")
     report.add_argument("--output", type=Path)
     report.add_argument("--sample-size", type=int, default=10)
+    update = commands.add_parser(
+        "refresh", help="Fetch public sources, import changes and update the vector index"
+    )
+    update.add_argument("--sources", type=parse_sources, default=PUBLIC_SOURCES)
+    update.add_argument("--every", type=int, help="Repeat every N seconds (minimum 900)")
     commands.add_parser("aliases")
     commands.add_parser("enrich", help="Recompute requirement levels and job facts for stored jobs")
     review = commands.add_parser("review-alias")
@@ -85,6 +91,8 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         records, errors = await asyncio.to_thread(load_records, path)
         return {"snapshot": str(path), "valid_jobs": len(records), "skipped": errors}
     settings = Settings()
+    if args.command == "refresh":
+        return await refresh(settings, args.sources, args.every)
     engine = create_engine(settings)
     try:
         if args.command == "import":
