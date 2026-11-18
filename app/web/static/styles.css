@@ -849,6 +849,10 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
 .active-filters .clear-filters { min-height: 44px; padding: 0 8px; font-size: .8125rem; font-weight: 600; color: var(--green); text-decoration: underline; }
 .count-pill[hidden] { display: none; }
 
+/* Usernames in the auth form and account menu */
+.auth-field { display: grid; gap: 8px; }
+.auth-field[hidden] { display: none; }
+.account-menu-email { margin: 0; padding: 6px 10px 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .75rem; overflow-wrap: anywhere; }
 /* Tighter page headers: the topbar already separates content from the top edge. */
 .hero, .page-intro { padding: 14px 0 16px; }
 .hero h1, .page-intro h1 { line-height: 1.2; margin: 0 0 6px; }

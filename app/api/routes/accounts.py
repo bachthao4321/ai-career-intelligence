@@ -11,13 +11,14 @@ from app.api.deps import (
 )
 from app.core.config import Settings
 from app.db.models import User
-from app.schemas.accounts import Credentials, SavedJobList, StatusUpdate, UserOut
+from app.schemas.accounts import Login, Registration, SavedJobList, StatusUpdate, UserOut
 from app.services.accounts import (
     EmailTaken,
     InvalidCredentials,
     JobNotFound,
     NotSaved,
     SavedLimitReached,
+    UsernameTaken,
     session_cookie,
 )
 
@@ -51,24 +52,26 @@ def signed_out(settings: Settings) -> Response:
 
 @auth.post("/register", status_code=201, response_model=UserOut, dependencies=login_guards)
 async def register(
-    body: Credentials, response: Response, accounts: AccountServiceDep, settings: SettingsDep
+    body: Registration, response: Response, accounts: AccountServiceDep, settings: SettingsDep
 ) -> UserOut:
     try:
         user, token = await accounts.register(body)
     except EmailTaken as exc:
         raise HTTPException(409, "Email already registered") from exc
+    except UsernameTaken as exc:
+        raise HTTPException(409, "Username already taken") from exc
     set_session(response, settings, token)
     return user
 
 
 @auth.post("/login", response_model=UserOut, dependencies=login_guards)
 async def login(
-    body: Credentials, response: Response, accounts: AccountServiceDep, settings: SettingsDep
+    body: Login, response: Response, accounts: AccountServiceDep, settings: SettingsDep
 ) -> UserOut:
     try:
         user, token = await accounts.login(body)
     except InvalidCredentials as exc:
-        raise HTTPException(401, "Invalid email or password") from exc
+        raise HTTPException(401, "Invalid login or password") from exc
     set_session(response, settings, token)
     return user
 

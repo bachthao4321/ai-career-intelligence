@@ -5,7 +5,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import Settings
@@ -13,13 +13,15 @@ from app.db.models import Job, SavedJob, User, UserSession
 from app.ingestion.service import import_records
 from app.main import create_app
 from app.schemas.ingestion import JobRecord
+from tests.db_helpers import migrate
 
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(os.getenv("RUN_INTEGRATION") != "1", reason="Set RUN_INTEGRATION=1"),
 ]
 
-ACCOUNT = {"email": "Ana@Example.com", "password": "correct horse battery"}
+ACCOUNT = {"email": "Ana@Example.com", "username": "Ana", "password": "correct horse battery"}
+LOGIN = {"login": "ana@example.com", "password": ACCOUNT["password"]}
 
 
 async def setup(
@@ -42,25 +44,33 @@ async def test_register_login_save_and_isolation(
     engine = isolated_database[0]
 
     def exercise() -> None:
-        with TestClient(create_app(config)) as client:
+        relaxed = config.model_copy(update={"auth_attempts_per_minute": 30})
+        with TestClient(create_app(relaxed)) as client:
             assert client.get("/auth/me").status_code == 401
             assert client.get("/me/saved-jobs").status_code == 401
             assert client.put(f"/me/saved-jobs/{job_id}").status_code == 401
-            bad = {"email": "not-an-email", "password": "long enough"}
+            bad = {"email": "not-an-email", "username": "aaa", "password": "long enough"}
             assert client.post("/auth/register", json=bad).status_code == 422
-            short = {"email": "a@example.com", "password": "short"}
+            short = {"email": "a@example.com", "username": "aaa", "password": "short"}
             assert client.post("/auth/register", json=short).status_code == 422
 
             created = client.post("/auth/register", json=ACCOUNT)
             assert created.status_code == 201, created.text
             assert created.json()["email"] == "ana@example.com"
+            assert created.json()["username"] == "ana"
             assert "password" not in created.text
             assert created.headers["cache-control"] == "no-store"
             cookie = created.headers["set-cookie"]
             assert "HttpOnly" in cookie and "SameSite=strict" in cookie
             assert client.get("/auth/me").json()["email"] == "ana@example.com"
-            again = {**ACCOUNT, "email": "ANA@example.com"}
-            assert client.post("/auth/register", json=again).status_code == 409
+            again = {**ACCOUNT, "email": "ANA@example.com", "username": "other"}
+            taken = client.post("/auth/register", json=again)
+            assert taken.status_code == 409 and taken.json()["detail"] == "Email already registered"
+            same_name = {**ACCOUNT, "email": "new@example.com", "username": "ANA"}
+            taken = client.post("/auth/register", json=same_name)
+            assert taken.status_code == 409 and taken.json()["detail"] == "Username already taken"
+            bad_name = {**ACCOUNT, "email": "new@example.com", "username": "a b"}
+            assert client.post("/auth/register", json=bad_name).status_code == 422
 
             assert client.put(f"/me/saved-jobs/{job_id}").status_code == 204
             assert client.put(f"/me/saved-jobs/{job_id}").status_code == 204  # idempotent
@@ -91,17 +101,20 @@ async def test_register_login_save_and_isolation(
 
             assert client.post("/auth/logout").status_code == 204
             assert client.get("/auth/me").status_code == 401
-            wrong = {**ACCOUNT, "password": "wrong password!"}
+            wrong = {**LOGIN, "password": "wrong password!"}
             assert client.post("/auth/login", json=wrong).status_code == 401
-            unknown = {**ACCOUNT, "email": "nobody@example.com"}
+            unknown = {**LOGIN, "login": "nobody@example.com"}
             missing = client.post("/auth/login", json=unknown)
             assert missing.status_code == 401
             assert missing.json() == client.post("/auth/login", json=wrong).json()
-            assert client.post("/auth/login", json=ACCOUNT).status_code == 200
+            assert client.post("/auth/login", json=LOGIN).status_code == 200
             assert len(client.get("/me/saved-jobs").json()["items"]) == 1
+            by_name = client.post("/auth/login", json={**LOGIN, "login": "ANA"})
+            assert by_name.status_code == 200 and by_name.json()["username"] == "ana"
+            assert client.post("/auth/login", json=ACCOUNT).status_code == 422
 
-        with TestClient(create_app(config)) as other:
-            other_account = {"email": "bo@example.com", "password": "another secret"}
+        with TestClient(create_app(relaxed)) as other:
+            other_account = {"email": "bo@example.com", "username": "bo.tran", "password": "x" * 12}
             assert other.post("/auth/register", json=other_account).status_code == 201
             assert other.get("/me/saved-jobs").json()["items"] == []
             # Another user's saved job is not theirs to move.
@@ -144,13 +157,41 @@ async def test_unsave_delete_account_and_rate_limit(
             assert client.put(f"/me/saved-jobs/{job_id}").status_code == 204
             assert client.delete("/auth/me").status_code == 204
             assert client.get("/auth/me").status_code == 401
-            wrong = {**ACCOUNT, "password": "wrong password!"}
-            assert client.post("/auth/login", json=wrong).status_code == 401
-            assert client.post("/auth/login", json=wrong).status_code == 401
-            limited = client.post("/auth/login", json=ACCOUNT)
-            assert limited.status_code == 429 and limited.headers["retry-after"] == "60"
+            # Windows are fixed wall-clock minutes, so a boundary may reset the count once
+            # mid-test (slow scrypt on CI). Within 2 * limit + 1 attempts a 429 must appear.
+            wrong = {**LOGIN, "password": "wrong password!"}
+            responses = [client.post("/auth/login", json=wrong) for _ in range(7)]
+            codes = [response.status_code for response in responses]
+            assert 429 in codes, codes
+            assert set(codes[: codes.index(429)]) <= {401}
+            assert responses[codes.index(429)].headers["retry-after"] == "60"
 
     await asyncio.to_thread(exercise)
     async with engine.connect() as connection:
         for table in (User, UserSession, SavedJob):
             assert await connection.scalar(select(func.count()).select_from(table)) == 0
+
+
+async def test_migration_backfills_valid_unique_usernames(
+    isolated_database: tuple[AsyncEngine, str],
+) -> None:
+    engine, url = isolated_database
+    await asyncio.to_thread(migrate, url, "downgrade", "0012_application_status")
+    emails = ["ana.nguyen@a.com", "Ana.Nguyen@b.com", "x@c.com", "._weird-name+tag@d.com"]
+    async with engine.begin() as connection:
+        for email in emails:
+            await connection.execute(
+                text("INSERT INTO users (email, password_hash) VALUES (:email, 'scrypt$x')"),
+                {"email": email.lower()},
+            )
+    await asyncio.to_thread(migrate, url, "upgrade", "head")
+    async with engine.connect() as connection:
+        names = dict(
+            (await connection.execute(text("SELECT email, username FROM users"))).tuples().all()
+        )
+    # Same stem: exactly one keeps it, the other gets an id-derived suffix.
+    pair = sorted([names["ana.nguyen@a.com"], names["ana.nguyen@b.com"]])
+    assert pair[0] == "ana.nguyen" and pair[1].startswith("ana.nguyen_")
+    assert names["x@c.com"] == "user"
+    assert names["._weird-name+tag@d.com"] == "weirdnametag"
+    assert len(set(names.values())) == len(names)

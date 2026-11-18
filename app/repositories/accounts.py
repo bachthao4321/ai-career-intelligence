@@ -13,16 +13,17 @@ class AccountRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def add_user(self, email: str, password_hash: str) -> User:
-        """Flushes so a duplicate email surfaces as IntegrityError here."""
-        user = User(email=email, password_hash=password_hash)
+    async def add_user(self, email: str, username: str, password_hash: str) -> User:
+        """Flushes so a duplicate email or username surfaces as IntegrityError here."""
+        user = User(email=email, username=username, password_hash=password_hash)
         self.session.add(user)
         await self.session.flush()
         await self.session.refresh(user)
         return user
 
-    async def user_by_email(self, email: str) -> User | None:
-        user: User | None = await self.session.scalar(select(User).where(User.email == email))
+    async def user_by_login(self, login: str) -> User | None:
+        column = User.email if "@" in login else User.username
+        user: User | None = await self.session.scalar(select(User).where(column == login))
         return user
 
     async def user_by_session(self, token_hash: str) -> User | None:

@@ -286,11 +286,16 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint("email = lower(email) AND length(email) <= 254", name="ck_users_email"),
+        CheckConstraint(
+            "username ~ '^[a-z0-9][a-z0-9._]{1,28}[a-z0-9]$'", name="ck_users_username"
+        ),
+        UniqueConstraint("username", name="uq_users_username"),
     )
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, server_default=text("gen_random_uuid()")
     )
     email: Mapped[str] = mapped_column(String(254), unique=True)
+    username: Mapped[str] = mapped_column(String(30))
     password_hash: Mapped[str] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

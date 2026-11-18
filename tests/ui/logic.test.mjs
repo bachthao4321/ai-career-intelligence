@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName, credentialProblem, statusCounts, statusName, APPLICATION_STATUSES, matchKind, onlySemantic } from '../../app/web/static/logic.mjs';
+import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName, credentialProblem, statusCounts, statusName, APPLICATION_STATUSES, matchKind, onlySemantic, usernameProblem, loginProblem, normalizeUsername } from '../../app/web/static/logic.mjs';
 
 test('source links allow only credential-free HTTP(S), including hostile schemes', () => {
   for (const url of ['javascript:alert(1)', 'data:text/html,<script>x</script>', 'file:///etc/passwd', '//evil.test', 'https://user:secret@example.com', 'not a url']) assert.equal(safeUrl(url), null);
@@ -94,4 +94,16 @@ test('match kind separates keyword hits from nearest-neighbour-only hits', () =>
   assert.equal(onlySemantic([{ bm25_score: null }, { bm25_score: null }]), true);
   assert.equal(onlySemantic([{ bm25_score: null }, { bm25_score: 0.4 }]), false);
   assert.equal(onlySemantic([]), false);
+});
+
+test('username and login validation mirror the API rules', () => {
+  assert.equal(normalizeUsername('  Ana.Nguyen '), 'ana.nguyen');
+  for (const good of ['ana', 'Ana_2', 'a.b.c', 'x'.repeat(30)]) assert.equal(usernameProblem(good), null);
+  assert.match(usernameProblem('ab'), /3–30/);
+  assert.match(usernameProblem('x'.repeat(31)), /3–30/);
+  for (const bad of ['_ana', 'ana.', 'an a', 'ana@x', 'ánh']) assert.match(usernameProblem(bad), /chữ thường/);
+  assert.equal(loginProblem('ana', '12345678'), null);
+  assert.equal(loginProblem('ana@example.com', '12345678'), null);
+  assert.match(loginProblem('a', '12345678'), /email hoặc tên người dùng/);
+  assert.match(loginProblem('ana', 'short'), /8 ký tự/);
 });
