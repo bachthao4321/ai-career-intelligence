@@ -872,3 +872,8 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
   .cv-how { display: flex; flex-direction: column; padding-bottom: 24px; }
   .cv-how .cv-small-note { margin-top: auto; }
 }
+
+/* Job dialog: readable section labels, avatar centred on the company + title block. */
+.eyebrow, .dialog-top .eyebrow { font-size: .75rem; letter-spacing: .1em; }
+.detail-heading { align-items: center; }
+.detail-heading .detail-translation { align-self: flex-start; }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName, credentialProblem, statusCounts, statusName, APPLICATION_STATUSES, matchKind, onlySemantic, usernameProblem, loginProblem, normalizeUsername } from '../../app/web/static/logic.mjs';
+import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName, credentialProblem, statusCounts, statusName, APPLICATION_STATUSES, matchKind, onlySemantic, usernameProblem, loginProblem, normalizeUsername, isHeadingLine } from '../../app/web/static/logic.mjs';
 
 test('source links allow only credential-free HTTP(S), including hostile schemes', () => {
   for (const url of ['javascript:alert(1)', 'data:text/html,<script>x</script>', 'file:///etc/passwd', '//evil.test', 'https://user:secret@example.com', 'not a url']) assert.equal(safeUrl(url), null);
@@ -106,4 +106,11 @@ test('username and login validation mirror the API rules', () => {
   assert.equal(loginProblem('ana@example.com', '12345678'), null);
   assert.match(loginProblem('a', '12345678'), /email hoặc tên người dùng/);
   assert.match(loginProblem('ana', 'short'), /8 ký tự/);
+});
+
+test('section titles are recognised by known phrase, trailing colon or capitals', () => {
+  for (const title of ['Om uppdraget', 'Vi söker dig som har:', 'What you’ll do', 'Nice to have', 'Mô tả công việc', 'YÊU CẦU', 'JOB REQUIREMENTS', 'Du kommer bland annat att:', 'Tại sao bạn sẽ yêu thích làm việc tại đây', 'Om Randstad', 'About GreenNode', 'Vad vi erbjuder']) assert.equal(isHeadingLine(title), true, title);
+  for (const text of ['Who you are matters to our team.', 'Yêu cầu Python và SQL', 'Omfattning: Heltid', 'Hemsida – https://example.se/', '- Python:', 'We build things. Then we ship:', 'AWS', 'A'.repeat(80) + ':', 'Om du har frågor', 'About you and me'.replace('you and me', 'the role and team today')]) assert.equal(isHeadingLine(text), false, text);
+  const bold = descriptionSegments('Om uppdraget\nDu kommer att koda.\nVi erbjuder\nFriskvård').filter(part => part.heading).map(part => part.text);
+  assert.deepEqual(bold, ['Om uppdraget', 'Vi erbjuder']);
 });
