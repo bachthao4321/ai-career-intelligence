@@ -862,3 +862,9 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
 @media (max-width: 640px) {
   .drop-zone { padding: 24px 15px; }
 }
+/* Two-column CV layout: stretch the steps column and pin its note to the card's bottom edge. */
+@media (min-width: 1001px) {
+  .cv-empty-layout { align-items: stretch; }
+  .cv-how { display: flex; flex-direction: column; padding-bottom: 24px; }
+  .cv-how .cv-small-note { margin-top: auto; }
+}
