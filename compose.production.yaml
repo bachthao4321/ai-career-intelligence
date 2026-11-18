@@ -94,6 +94,17 @@ services:
       APP_ROLE_PASSWORD: ${APP_ROLE_PASSWORD:?Required}
     depends_on:
       migrate: {condition: service_completed_successfully}
+  # Opt-in: add --profile refresh to fetch public sources on a schedule.
+  refresher:
+    <<: *app
+    profiles: [refresh]
+    command: [sh, -c, "exec python -m app.cli ingest refresh --every $${REFRESH_EVERY_SECONDS:-21600}"]
+    environment:
+      <<: *env
+      REFRESH_EVERY_SECONDS: ${REFRESH_EVERY_SECONDS:-21600}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      qdrant: {condition: service_started}
   proxy:
     image: caddy:2.11.9-alpine
     restart: unless-stopped

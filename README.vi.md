@@ -92,6 +92,19 @@ uv run --frozen python -m app.cli ingest fetch employers
 uv run --frozen python -m app.cli ingest enrich
 ```
 
+### Tự động cập nhật tin tuyển dụng
+
+Service `refresher` tự lấy tin từ các nguồn công khai (JobTech, Remotive, trang tuyển dụng công ty), nạp phần thay đổi và cập nhật index. Service này chỉ chạy khi bật profile `refresh`, để CI không gọi ra nguồn bên ngoài:
+
+```bash
+docker compose --profile refresh up -d                              # mặc định 6 giờ một lần
+REFRESH_EVERY_SECONDS=3600 docker compose --profile refresh up -d   # mỗi giờ (tối thiểu 900 giây)
+docker compose logs -f refresher                                    # mỗi chu kỳ in một báo cáo JSON
+uv run --frozen python -m app.cli ingest refresh                    # chạy một lần, không cần container
+```
+
+API đọc database ở mỗi request, nên tin mới hiện ngay khi chu kỳ chạy xong. Một nguồn lỗi không làm dừng các nguồn khác. Nguồn chỉ dùng cho nghiên cứu cá nhân không bao giờ được lấy tự động.
+
 Search theo nghĩa (dense hoặc hybrid) cần tải model và tạo index:
 
 ```bash

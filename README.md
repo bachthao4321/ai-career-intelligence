@@ -89,6 +89,19 @@ uv run --frozen python -m app.cli search download-model
 uv run --frozen python -m app.cli search index
 ```
 
+### Keeping jobs up to date
+
+A `refresher` service fetches the public sources (JobTech, Remotive and the employer boards), imports what changed and updates the vector index incrementally. It is opt-in so CI never calls external sources:
+
+```bash
+docker compose --profile refresh up -d                         # every 6 hours by default
+REFRESH_EVERY_SECONDS=3600 docker compose --profile refresh up -d   # hourly (minimum 900)
+docker compose logs -f refresher                               # one JSON report per cycle
+uv run --frozen python -m app.cli ingest refresh               # a single run, no container
+```
+
+The API reads the database on every request, so new postings appear as soon as a cycle finishes. If one source fails, the others still run. Personal-research sources are never fetched on a schedule.
+
 The `/admin/import` and `/admin/index` endpoints do the same over HTTP. To use them, set `ADMIN_KEY` (32 or more characters) in `.env` and send it as the `X-Admin-Key` header.
 
 ## API examples
@@ -127,7 +140,7 @@ uv run --frozen python -m app.cli search download-model
 docker compose -f compose.production.yaml --env-file .env.production up -d --build --wait
 ```
 
-Then load data through `/admin/import` and build the index with `/admin/index`. Use `scripts/operations.py backup` for cold backups.
+Then load data through `/admin/import` and build the index with `/admin/index`, or add `--profile refresh` to keep public sources up to date. Use `scripts/operations.py backup` for cold backups.
 
 ## Limitations
 

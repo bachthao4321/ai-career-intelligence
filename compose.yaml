@@ -101,6 +101,23 @@ services:
       retries: 12
       start_period: 10s
 
+  # Opt-in: docker compose --profile refresh up -d (kept out of CI, which must not call sources).
+  refresher:
+    <<: *app
+    profiles: ["refresh"]
+    command: ["sh", "-c", "exec python -m app.cli ingest refresh --every $${REFRESH_EVERY_SECONDS:-21600}"]
+    environment:
+      <<: *app-env
+      REFRESH_EVERY_SECONDS: ${REFRESH_EVERY_SECONDS:-21600}
+    volumes:
+      - ./models:/models:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+
   analytics-role:
     <<: *app
     command: ["python", "-m", "app.cli", "ask", "provision", "--scope", "local", "--role", "career_analytics_local"]
