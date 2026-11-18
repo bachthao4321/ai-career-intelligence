@@ -848,3 +848,23 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
 .job-footnote.semantic { color: var(--amber); }
 .active-filters .clear-filters { min-height: 44px; padding: 0 8px; font-size: .8125rem; font-weight: 600; color: var(--green); text-decoration: underline; }
 .count-pill[hidden] { display: none; }
+
+/* Tighter page headers: the topbar already separates content from the top edge. */
+.hero, .page-intro { padding: 14px 0 16px; }
+.hero h1, .page-intro h1 { line-height: 1.2; margin: 0 0 6px; }
+@media (max-width: 640px) {
+  .hero, .page-intro { padding: 10px 0 12px; }
+}
+/* CV upload: align the steps column with the upload card and trim the drop zone. */
+.cv-empty-layout { align-items: start; }
+.cv-how { padding-top: 4px; }
+.drop-zone { padding: 28px 20px; }
+@media (max-width: 640px) {
+  .drop-zone { padding: 24px 15px; }
+}
+/* Two-column CV layout: stretch the steps column and pin its note to the card's bottom edge. */
+@media (min-width: 1001px) {
+  .cv-empty-layout { align-items: stretch; }
+  .cv-how { display: flex; flex-direction: column; padding-bottom: 24px; }
+  .cv-how .cv-small-note { margin-top: auto; }
+}
