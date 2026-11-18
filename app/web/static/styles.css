@@ -855,3 +855,10 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
 @media (max-width: 640px) {
   .hero, .page-intro { padding: 10px 0 12px; }
 }
+/* CV upload: align the steps column with the upload card and trim the drop zone. */
+.cv-empty-layout { align-items: start; }
+.cv-how { padding-top: 4px; }
+.drop-zone { padding: 28px 20px; }
+@media (max-width: 640px) {
+  .drop-zone { padding: 24px 15px; }
+}
