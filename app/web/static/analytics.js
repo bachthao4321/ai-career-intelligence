@@ -1,5 +1,5 @@
-import { $, api, el, icon, emptyState, loading, busy, jobCard, skillName, warningText, link } from './ui.js?v=20261117-1';
-import { number, sourceName, workplaceName, columnLabel, questionCompletion } from './logic.mjs?v=20261117-1';
+import { $, api, el, icon, emptyState, loading, busy, jobCard, skillName, warningText, link } from './ui.js?v=20261118-2';
+import { number, sourceName, workplaceName, columnLabel, questionCompletion } from './logic.mjs?v=20261118-2';
 
 export function initAnalytics(context) {
   let controller = null;
@@ -41,7 +41,7 @@ export function initAnalytics(context) {
     $('question-suggestion-toggle').setAttribute('aria-expanded', 'false');
     document.querySelector('.question-suggestions').hidden = answer.status === 'ok';
     if (answer.status !== 'ok') {
-      host.replaceChildren(emptyState(answer.status === 'needs_clarification' ? 'Bạn muốn hỏi cụ thể về điều gì?' : answer.status === 'rejected' ? 'Hãy thử câu hỏi đơn giản hơn' : 'Chưa tải được thống kê', answer.status === 'needs_clarification' ? 'Bạn có thể chọn một câu hỏi mẫu phía trên. Những yêu cầu phức tạp có thể chưa được hỗ trợ.' : answer.answer, 'info'));
+      host.replaceChildren(emptyState(answer.status === 'needs_clarification' ? 'Bạn muốn hỏi cụ thể về điều gì?' : answer.status === 'rejected' ? 'Hãy thử câu hỏi đơn giản hơn' : 'Chưa tải được thống kê', answer.status === 'needs_clarification' ? 'Bạn có thể chọn một câu hỏi mẫu phía trên. Những yêu cầu phức tạp có thể chưa được hỗ trợ.' : answer.answer, 'info', null, 'h2'));
       return;
     }
     if (answer.search) {
@@ -93,7 +93,7 @@ export function initAnalytics(context) {
     busy($('ask-submit'), true, 'Đang đọc dữ liệu');
     $('ask-result').setAttribute('aria-busy', 'true'); $('ask-result').replaceChildren(loading('Đang tìm câu trả lời…'));
     try { const answer = await api('/ask', { method: 'POST', signal: current.signal, json: { question, top_k: 5 } }); if (controller === current) render(answer, question); }
-    catch (error) { if (error.name !== 'AbortError' && current === controller) $('ask-result').replaceChildren(emptyState('Chưa thể trả lời câu hỏi.', error.message, 'info', el('button', { class: 'button secondary', onclick: ask, text: 'Thử lại' }))); }
+    catch (error) { if (error.name !== 'AbortError' && current === controller) $('ask-result').replaceChildren(emptyState('Chưa thể trả lời câu hỏi.', error.message, 'info', el('button', { class: 'button secondary', onclick: ask, text: 'Thử lại' }), 'h2')); }
     finally { if (current === controller) { busy($('ask-submit'), false, 'Hỏi dữ liệu'); $('ask-result').setAttribute('aria-busy', 'false'); } }
   }
   $('ask-form').addEventListener('submit', event => { event.preventDefault(); ask(); });

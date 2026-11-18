@@ -24,6 +24,9 @@ export function savedCredential(value, now = Date.now()) {
   } catch { return null; }
 }
 export function duration(seconds) { return seconds >= 3600 && seconds % 3600 === 0 ? `${seconds / 3600} giờ` : `${Math.ceil(seconds / 60)} phút`; }
+// Hybrid/dense search always returns nearest neighbours; flag hits that share no query term.
+export const matchKind = hit => !hit || !('bm25_score' in hit) ? null : hit.bm25_score === null ? 'semantic' : 'keyword';
+export const onlySemantic = items => items.length > 0 && items.every(item => matchKind(item) === 'semantic');
 export const columnLabel = key => ({ listing_count: 'Số tin', unique_content_count: 'Việc làm không trùng', skill_slug: 'Kỹ năng', source: 'Nguồn', workplace_type: 'Hình thức', location: 'Địa điểm', company: 'Công ty', title: 'Vị trí', n: 'Số lượng', count: 'Số lượng' }[key] || key.replaceAll('_', ' '));
 
 // Treat line-break tags as formatting while keeping all other markup as text.

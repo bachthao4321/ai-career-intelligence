@@ -1,9 +1,9 @@
-import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261117-1';
-import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261117-1';
-import { initJobs } from './jobs.js?v=20261117-1';
-import { initAnalytics } from './analytics.js?v=20261117-1';
-import { initCV } from './cv.js?v=20261117-1';
-import { initAccount } from './account.js?v=20261117-1';
+import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261118-2';
+import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261118-2';
+import { initJobs } from './jobs.js?v=20261118-2';
+import { initAnalytics } from './analytics.js?v=20261118-2';
+import { initCV } from './cv.js?v=20261118-2';
+import { initAccount } from './account.js?v=20261118-2';
 
 hydrateIcons();
 // Scroll offsets follow the actual sticky navigation height, including text scaling.

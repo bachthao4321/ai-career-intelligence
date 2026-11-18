@@ -842,3 +842,9 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
 .status-interviewing { --status-tone: #b8862f; }
 .status-offer { --status-tone: #2f8a57; }
 .status-rejected { --status-tone: #a8564d; }
+
+/* UI/UX audit: headings in empty states, match signal, clear-all filters */
+.quiet-state h2 { font-size: 16px; font-weight: 500; letter-spacing: -.02em; color: var(--ink); }
+.job-footnote.semantic { color: var(--amber); }
+.active-filters .clear-filters { min-height: 44px; padding: 0 8px; font-size: .8125rem; font-weight: 600; color: var(--green); text-decoration: underline; }
+.count-pill[hidden] { display: none; }

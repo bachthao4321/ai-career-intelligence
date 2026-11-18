@@ -1,4 +1,4 @@
-import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261117-1';
+import { initials, safeUrl, sourceName, workplaceName, date, number, matchKind } from './logic.mjs?v=20261118-2';
 
 const paths = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',
@@ -140,13 +140,14 @@ export function jobHeading(job, openJob, excerptTarget = null) {
   return el('div', { class: 'job-card-heading' }, avatar(job.company), el('div', { class: 'job-card-copy' }, el('h3', { class: 'job-title-heading' }, title), el('p', { class: 'company-name', text: job.company || 'Chưa có tên công ty' }), el('div', { class: 'job-meta' }, country, meta(job.location || 'Chưa có địa điểm', 'pin'), job.workplace_type && job.workplace_type !== 'unknown' ? meta(workplaceName(job.workplace_type), 'briefcase') : null, deadline), ), el('div', { class: 'job-card-tools' }, jobPresentation(job, null, deadline, country, excerptTarget), sourceBadge(job)));
 }
 export function jobCard(job, context) {
-  const footer = job.duplicate_listings > 1 ? `${number(job.duplicate_listings)} tin cùng nội dung` : job.fetched_at ? `Cập nhật ${date(job.fetched_at)}` : 'Kiểm tra thông tin trong tin gốc';
+  const kind = matchKind(job);
+  const footer = [kind === 'keyword' ? 'Khớp từ khóa' : kind === 'semantic' ? 'Gần về ý nghĩa' : null, job.duplicate_listings > 1 ? `${number(job.duplicate_listings)} tin cùng nội dung` : null, job.fetched_at ? `Cập nhật ${date(job.fetched_at)}` : null].filter(Boolean).join(' · ');
   const excerpt = job.excerpt ? el('p', { class: 'job-excerpt', text: 'Đang tải mô tả gốc…' }) : null;
   return el('article', { class: 'job-card' }, jobHeading(job, context.openJob, excerpt), excerpt,
     job.skills?.length ? el('div', { class: 'job-tags' }, job.skills.slice(0, 5).map(slug => tag(skillName(slug, context.overview()))), job.skills.length > 5 ? el('button', { class: 'tag overflow-tags', type: 'button', 'aria-label': `Xem thêm ${job.skills.length - 5} kỹ năng: ${job.title}`, onclick: () => context.openJob(job.job_id || job.id), text: `+${job.skills.length - 5}` }) : null) : null,
-    el('div', { class: 'job-card-footer' }, el('span', { class: 'job-footnote', text: footer }), el('div', { class: 'job-card-actions' }, context.saveButton ? context.saveButton(job) : null, link(job.source_url, 'Tin gốc'), el('button', { class: 'text-button', type: 'button', 'aria-label': `Xem chi tiết: ${job.title}`, onclick: () => context.openJob(job.job_id || job.id) }, 'Xem chi tiết', icon('arrow-right')))));
+    el('div', { class: 'job-card-footer' }, el('span', { class: `job-footnote${kind === 'semantic' ? ' semantic' : ''}`, text: footer }), el('div', { class: 'job-card-actions' }, context.saveButton ? context.saveButton(job) : null, link(job.source_url, 'Tin gốc'), el('button', { class: 'text-button', type: 'button', 'aria-label': `Xem chi tiết: ${job.title}`, onclick: () => context.openJob(job.job_id || job.id) }, 'Xem chi tiết', icon('arrow-right')))));
 }
-export function emptyState(title, message, symbol = 'search', action = null) { return el('div', { class: 'quiet-state' }, icon(symbol), el('h3', { text: title }), el('p', { text: message }), action); }
+export function emptyState(title, message, symbol = 'search', action = null, level = 'h3') { return el('div', { class: 'quiet-state' }, icon(symbol), el(level, { text: title }), el('p', { text: message }), action); }
 export function loading(message) { return el('div', { class: 'loading-inline', role: 'status' }, el('span', { class: 'spinner', 'aria-hidden': 'true' }), message); }
 export function skeletons(count = 3) { return Array.from({ length: count }, () => el('div', { class: 'skeleton', 'aria-hidden': 'true' }, Array.from({ length: 4 }, () => el('span', { class: 'skeleton-line' })))); }
 export function notice(box, message, tone = '') { box.hidden = !message; box.className = `notice ${tone}`; box.replaceChildren(icon('info'), el('span', { text: message })); }
