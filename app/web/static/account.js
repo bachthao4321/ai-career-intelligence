@@ -58,7 +58,7 @@ export function initAccount(context) {
     const select = el('select', { class: 'status-select', 'aria-label': `Trạng thái ứng tuyển: ${job.title}` },
       APPLICATION_STATUSES.map(([key, label]) => el('option', { value: key, text: label })));
     select.value = item.status;
-    const stamp = el('span', { class: 'status-stamp', text: `Cập nhật ${date(item.status_updated_at)}` });
+    const stamp = el('span', { class: 'status-stamp', text: `Đổi trạng thái ${date(item.status_updated_at)}` });
     select.addEventListener('change', async () => {
       const previous = item.status, next = select.value;
       item.status = next; select.disabled = true;
