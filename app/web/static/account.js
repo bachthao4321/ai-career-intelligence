@@ -1,5 +1,5 @@
-import { $, api, el, icon, jobCard, emptyState, loading, openDialog, toast, busy } from './ui.js?v=20261118-2';
-import { credentialProblem, date, APPLICATION_STATUSES, statusName, statusCounts } from './logic.mjs?v=20261118-2';
+import { $, api, el, icon, jobCard, emptyState, loading, openDialog, toast, busy } from './ui.js?v=20261118-4';
+import { credentialProblem, usernameProblem, loginProblem, normalizeUsername, date, APPLICATION_STATUSES, statusName, statusCounts } from './logic.mjs?v=20261118-4';
 
 // Accounts use an HttpOnly session cookie; this module only tracks who is signed in and which jobs are saved.
 export function initAccount(context) {
@@ -121,8 +121,9 @@ export function initAccount(context) {
     const menu = el('details', { class: 'account-menu' });
     const close = () => { menu.open = false; };
     menu.append(
-      el('summary', { 'aria-label': `Tài khoản: ${user.email}` }, icon('user'), el('span', { class: 'account-email', text: user.email }), icon('chevron-down')),
+      el('summary', { 'aria-label': `Tài khoản: ${user.username}` }, icon('user'), el('span', { class: 'account-email', text: user.username }), icon('chevron-down')),
       el('div', { class: 'account-menu-panel' },
+        el('p', { class: 'account-menu-email', text: user.email }),
         el('a', { class: 'account-menu-item', href: '#saved', onclick: close }, icon('bookmark'), 'Việc đã lưu'),
         el('button', { class: 'account-menu-item', type: 'button', onclick: () => { close(); logout(); } }, icon('logout'), 'Đăng xuất'),
         el('button', { class: 'account-menu-item danger', type: 'button', onclick: () => { close(); openDialog('delete-account-dialog'); } }, icon('trash'), 'Xóa tài khoản')));
@@ -142,6 +143,11 @@ export function initAccount(context) {
     $('auth-title').textContent = register ? 'Tạo tài khoản' : 'Đăng nhập';
     $('auth-submit').textContent = register ? 'Tạo tài khoản' : 'Đăng nhập';
     $('auth-password').setAttribute('autocomplete', register ? 'new-password' : 'current-password');
+    $('auth-email-label').textContent = register ? 'Email' : 'Email hoặc tên người dùng';
+    $('auth-email').type = register ? 'email' : 'text';
+    $('auth-email').setAttribute('autocomplete', register ? 'email' : 'username');
+    $('auth-username-field').hidden = !register;
+    $('auth-username').required = register;
     $('auth-hint').hidden = !register;
     $('auth-switch-text').textContent = register ? 'Đã có tài khoản?' : 'Chưa có tài khoản?';
     $('auth-switch').textContent = register ? 'Đăng nhập' : 'Đăng ký';
@@ -159,13 +165,14 @@ export function initAccount(context) {
   async function submit(event) {
     event.preventDefault();
     const email = $('auth-email').value.trim(), password = $('auth-password').value;
-    const problem = credentialProblem(email, password);
+    const register = mode === 'register', username = normalizeUsername($('auth-username').value);
+    const problem = register ? credentialProblem(email, password) || usernameProblem(username) : loginProblem(email, password);
     const error = $('auth-error');
     if (problem) { error.textContent = problem; error.hidden = false; return; }
-    const register = mode === 'register', button = $('auth-submit');
+    const button = $('auth-submit');
     busy(button, true, register ? 'Đang tạo tài khoản…' : 'Đang đăng nhập…');
     try {
-      const account = await api(`/auth/${register ? 'register' : 'login'}`, { method: 'POST', json: { email, password } });
+      const account = await api(`/auth/${register ? 'register' : 'login'}`, { method: 'POST', json: register ? { email, username, password } : { login: email, password } });
       const next = pendingSave; pendingSave = null;
       setUser(account);
       $('auth-dialog').close();

@@ -47,11 +47,22 @@ export function descriptionSegments(value) {
   });
 }
 
+const passwordProblem = password => password.length < 8 ? 'Mật khẩu cần tối thiểu 8 ký tự.' : password.length > 128 ? 'Mật khẩu tối đa 128 ký tự.' : null;
+export const normalizeUsername = value => value.trim().toLowerCase();
 export function credentialProblem(email, password) {
   if (!/^[^@\s]{1,64}@[^@\s.]+(\.[^@\s.]+)+$/.test(email) || email.length > 254) return 'Hãy nhập một địa chỉ email hợp lệ.';
-  if (password.length < 8) return 'Mật khẩu cần tối thiểu 8 ký tự.';
-  if (password.length > 128) return 'Mật khẩu tối đa 128 ký tự.';
+  return passwordProblem(password);
+}
+// Mirrors the API rule: 3-30 chars of a-z, 0-9, dot or underscore, alphanumeric at both ends.
+export function usernameProblem(value) {
+  const name = normalizeUsername(value);
+  if (name.length < 3 || name.length > 30) return 'Tên người dùng cần 3–30 ký tự.';
+  if (!/^[a-z0-9][a-z0-9._]{1,28}[a-z0-9]$/.test(name)) return 'Tên người dùng chỉ gồm chữ thường, số, dấu chấm hoặc gạch dưới, và bắt đầu, kết thúc bằng chữ hoặc số.';
   return null;
+}
+export function loginProblem(login, password) {
+  if (login.trim().length < 3) return 'Hãy nhập email hoặc tên người dùng.';
+  return passwordProblem(password);
 }
 
 // Application pipeline for saved jobs; keys mirror the API's ApplicationStatus.

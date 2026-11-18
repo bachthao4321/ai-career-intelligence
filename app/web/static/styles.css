@@ -848,3 +848,8 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
 .job-footnote.semantic { color: var(--amber); }
 .active-filters .clear-filters { min-height: 44px; padding: 0 8px; font-size: .8125rem; font-weight: 600; color: var(--green); text-decoration: underline; }
 .count-pill[hidden] { display: none; }
+
+/* Usernames in the auth form and account menu */
+.auth-field { display: grid; gap: 8px; }
+.auth-field[hidden] { display: none; }
+.account-menu-email { margin: 0; padding: 6px 10px 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .75rem; overflow-wrap: anywhere; }

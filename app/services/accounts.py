@@ -17,7 +17,8 @@ from app.repositories.jobs import JobRepository
 from app.schemas.accounts import (
     MAX_SAVED_JOBS,
     ApplicationStatus,
-    Credentials,
+    Login,
+    Registration,
     SavedJobList,
     SavedJobOut,
     UserOut,
@@ -29,6 +30,10 @@ HASH_SLOTS = threading.BoundedSemaphore(2)
 
 
 class EmailTaken(Exception):
+    pass
+
+
+class UsernameTaken(Exception):
     pass
 
 
@@ -72,17 +77,20 @@ class AccountService:
         self.jobs = jobs
         self.settings = settings
 
-    async def register(self, credentials: Credentials) -> tuple[UserOut, str]:
-        password_hash = await asyncio.to_thread(_bounded_hash, credentials.password)
+    async def register(self, registration: Registration) -> tuple[UserOut, str]:
+        password_hash = await asyncio.to_thread(_bounded_hash, registration.password)
         try:
-            user = await self.accounts.add_user(credentials.email, password_hash)
+            user = await self.accounts.add_user(
+                registration.email, registration.username, password_hash
+            )
         except IntegrityError as exc:
-            raise EmailTaken from exc
+            constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", "")
+            raise (UsernameTaken if constraint == "uq_users_username" else EmailTaken) from exc
         return await self._signed_in(user)
 
-    async def login(self, credentials: Credentials) -> tuple[UserOut, str]:
-        user = await self.accounts.user_by_email(credentials.email)
-        # Verify against a dummy hash for unknown emails so timing does not reveal accounts.
+    async def login(self, credentials: Login) -> tuple[UserOut, str]:
+        user = await self.accounts.user_by_login(credentials.login)
+        # Verify against a dummy hash for unknown logins so timing does not reveal accounts.
         stored = user.password_hash if user else dummy_hash()
         valid = await asyncio.to_thread(_bounded_verify, credentials.password, stored)
         if user is None or not valid:

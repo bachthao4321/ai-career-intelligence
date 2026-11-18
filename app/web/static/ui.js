@@ -1,4 +1,4 @@
-import { initials, safeUrl, sourceName, workplaceName, date, number, matchKind } from './logic.mjs?v=20261118-2';
+import { initials, safeUrl, sourceName, workplaceName, date, number, matchKind } from './logic.mjs?v=20261118-4';
 
 const paths = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',
@@ -172,7 +172,8 @@ const errorMessages = {
   'Dense index/model unavailable; run model download and indexing': 'Tìm theo ý nghĩa chưa sẵn sàng. Bạn có thể chuyển sang tìm theo từ khóa.',
   'Corpus limit exceeded; narrow search filters': 'Có quá nhiều tin cho một lượt tìm. Hãy thu hẹp nguồn hoặc địa điểm.',
   'Corpus limit exceeded; narrow filters': 'Hãy thu hẹp nguồn hoặc địa điểm trước khi đối chiếu.',
-  'Invalid email or password': 'Email hoặc mật khẩu chưa đúng.',
+  'Invalid login or password': 'Email, tên người dùng hoặc mật khẩu chưa đúng.',
+  'Username already taken': 'Tên người dùng này đã có người dùng. Hãy chọn tên khác.',
   'Email already registered': 'Email này đã có tài khoản. Hãy đăng nhập.',
   'Too many attempts; retry later': 'Bạn đã thử quá nhiều lần. Vui lòng chờ một phút rồi thử lại.',
   'Login required': 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',
