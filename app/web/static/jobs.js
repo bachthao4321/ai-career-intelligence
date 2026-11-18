@@ -1,5 +1,5 @@
-import { $, api, el, icon, jobCard, notice, emptyState, skeletons, busy, warningText } from './ui.js?v=20261117-1';
-import { number } from './logic.mjs?v=20261117-1';
+import { $, api, el, icon, jobCard, notice, emptyState, skeletons, busy, warningText } from './ui.js?v=20261118-2';
+import { number, onlySemantic } from './logic.mjs?v=20261118-2';
 
 export function initJobs(context) {
   let page = 0, data = null, mode = 'browse', controller = null;
@@ -26,13 +26,14 @@ export function initJobs(context) {
     $('filter-count').textContent = String(count);
     $('filter-count').hidden = count === 0;
     box.hidden = !selected.length;
-    box.replaceChildren(el('span', { text: 'Đang áp dụng' }), ...selected.map(([id, label, value]) =>
+    box.replaceChildren(...[el('span', { text: 'Đang áp dụng' }), ...selected.map(([id, label, value]) =>
       el('button', { class: 'filter-chip', type: 'button', 'aria-label': `Bỏ ${label.toLowerCase()}: ${value}`, onclick: () => {
         $(id).value = '';
         const disclosure = $(id).closest('details');
         if (disclosure) disclosure.open = true;
         load(); $(id).focus();
-      } }, el('span', { text: `${label}: ${value}` }), icon('close'))));
+      } }, el('span', { text: `${label}: ${value}` }), icon('close'))),
+      selected.length > 1 ? el('button', { class: 'text-button clear-filters', type: 'button', onclick: reset, text: 'Xóa tất cả' }) : null].filter(Boolean));
   }
   function paint() {
     const items = mode === 'browse' ? data.items : data.items.slice(page * size, (page + 1) * size);
@@ -50,7 +51,9 @@ export function initJobs(context) {
     $('pagination-label').textContent = `${number(page * size + 1)}–${number(Math.min((page + 1) * size, total))} / ${number(total)} ${mode === 'browse' ? 'việc làm' : 'kết quả trả về'}`;
     const warnings = warningText(data.warnings);
     const fallback = mode === 'search' && data.requested_mode === 'hybrid' && data.effective_mode === 'bm25';
-    notice($('search-notice'), `${fallback ? 'Đã dùng tìm theo từ khóa vì tìm ngữ nghĩa chưa sẵn sàng. ' : ''}${warnings}`, fallback ? 'warning' : '');
+    const semantic = mode === 'search' && data.effective_mode === 'hybrid' && onlySemantic(data.items);
+    const semanticNote = semantic ? `Không có tin nào chứa từ khóa “${appliedQuery}”. Các kết quả dưới đây chỉ gần về ý nghĩa và có thể không liên quan. ` : '';
+    notice($('search-notice'), `${fallback ? 'Đã dùng tìm theo từ khóa vì tìm ngữ nghĩa chưa sẵn sàng. ' : ''}${semanticNote}${warnings}`, fallback || semantic ? 'warning' : '');
     renderApplied();
   }
   async function load(resetPage = true) {
@@ -97,7 +100,8 @@ export function initJobs(context) {
   function reset() { $('search-form').reset(); $('search-query').setCustomValidity(''); load(); }
   function focusResults() {
     $('results-heading').focus({ preventScroll: true });
-    $('results-heading').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    const applied = $('active-filters');
+    (applied.hidden ? $('results-heading') : applied).scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   }
   $('search-form').addEventListener('submit', async event => {
     event.preventDefault();

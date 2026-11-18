@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName, credentialProblem, statusCounts, statusName, APPLICATION_STATUSES } from '../../app/web/static/logic.mjs';
+import { safeUrl, savedCredential, initials, duration, sourceName, descriptionText, descriptionSegments, skillLabel, requirementName, credentialProblem, statusCounts, statusName, APPLICATION_STATUSES, matchKind, onlySemantic } from '../../app/web/static/logic.mjs';
 
 test('source links allow only credential-free HTTP(S), including hostile schemes', () => {
   for (const url of ['javascript:alert(1)', 'data:text/html,<script>x</script>', 'file:///etc/passwd', '//evil.test', 'https://user:secret@example.com', 'not a url']) assert.equal(safeUrl(url), null);
@@ -85,4 +85,13 @@ test('application status helpers count known states and label them', () => {
   assert.deepEqual(statusCounts([{ status: 'applied' }, { status: 'applied' }, { status: 'offer' }, { status: 'bogus' }]), { saved: 0, applied: 2, interviewing: 0, offer: 1, rejected: 0 });
   assert.equal(statusName('interviewing'), 'Phỏng vấn');
   assert.equal(statusName('unknown'), 'Đã lưu');
+});
+
+test('match kind separates keyword hits from nearest-neighbour-only hits', () => {
+  assert.equal(matchKind({ bm25_score: 3.2 }), 'keyword');
+  assert.equal(matchKind({ bm25_score: null }), 'semantic');
+  assert.equal(matchKind({ title: 'browse item' }), null);
+  assert.equal(onlySemantic([{ bm25_score: null }, { bm25_score: null }]), true);
+  assert.equal(onlySemantic([{ bm25_score: null }, { bm25_score: 0.4 }]), false);
+  assert.equal(onlySemantic([]), false);
 });

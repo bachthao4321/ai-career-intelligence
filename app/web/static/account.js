@@ -1,5 +1,5 @@
-import { $, api, el, icon, jobCard, emptyState, loading, openDialog, toast, busy } from './ui.js?v=20261117-1';
-import { credentialProblem, date, APPLICATION_STATUSES, statusName, statusCounts } from './logic.mjs?v=20261117-1';
+import { $, api, el, icon, jobCard, emptyState, loading, openDialog, toast, busy } from './ui.js?v=20261118-2';
+import { credentialProblem, date, APPLICATION_STATUSES, statusName, statusCounts } from './logic.mjs?v=20261118-2';
 
 // Accounts use an HttpOnly session cookie; this module only tracks who is signed in and which jobs are saved.
 export function initAccount(context) {
@@ -95,24 +95,25 @@ export function initAccount(context) {
   async function renderSaved() {
     const host = $('saved-jobs');
     if (!user) {
-      host.replaceChildren(emptyState('Đăng nhập để xem việc đã lưu', 'Lưu các tin bạn quan tâm để xem lại hoặc ứng tuyển sau.', 'bookmark', el('button', { class: 'button primary', type: 'button', onclick: () => openAuth('login') }, 'Đăng nhập')));
+      host.replaceChildren(emptyState('Đăng nhập để xem việc đã lưu', 'Lưu các tin bạn quan tâm để xem lại hoặc ứng tuyển sau.', 'bookmark', el('button', { class: 'button primary', type: 'button', onclick: () => openAuth('login') }, 'Đăng nhập'), 'h2'));
       return;
     }
     host.replaceChildren(loading('Đang tải việc đã lưu…'));
     try {
       items = await loadSaved();
       $('saved-count').textContent = String(items.length);
-      if (!items.length) { host.replaceChildren(emptyState('Chưa lưu việc làm nào', 'Bấm “Lưu” trên một tin tuyển dụng để thêm vào đây.', 'bookmark', el('a', { class: 'button secondary', href: '#jobs' }, 'Tìm việc làm'))); return; }
+      if (!items.length) { host.replaceChildren(emptyState('Chưa lưu việc làm nào', 'Bấm “Lưu” trên một tin tuyển dụng để thêm vào đây.', 'bookmark', el('a', { class: 'button secondary', href: '#jobs' }, 'Tìm việc làm'), 'h2')); return; }
       drawSaved();
     } catch (error) {
       if (error.status === 401) { setUser(null); renderSaved(); return; }
-      host.replaceChildren(emptyState('Chưa tải được việc đã lưu', error.message, 'info'));
+      host.replaceChildren(emptyState('Chưa tải được việc đã lưu', error.message, 'info', null, 'h2'));
     }
   }
 
   function renderAccount() {
     const host = $('account-area');
-    $('saved-count').textContent = user ? String(saved.size) : '—';
+    $('saved-count').textContent = user ? String(saved.size) : '';
+    $('saved-count').hidden = !user;
     if (!user) {
       host.replaceChildren(el('button', { class: 'button secondary account-login', type: 'button', onclick: () => openAuth('login') }, icon('user'), 'Đăng nhập'));
       return;
