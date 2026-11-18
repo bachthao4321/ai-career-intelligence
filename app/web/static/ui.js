@@ -1,4 +1,4 @@
-import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261114-1';
+import { initials, safeUrl, sourceName, workplaceName, date, number } from './logic.mjs?v=20261117-1';
 
 const paths = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',

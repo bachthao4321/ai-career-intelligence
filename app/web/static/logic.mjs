@@ -50,3 +50,14 @@ export function credentialProblem(email, password) {
   if (password.length > 128) return 'Mật khẩu tối đa 128 ký tự.';
   return null;
 }
+
+// Application pipeline for saved jobs; keys mirror the API's ApplicationStatus.
+export const APPLICATION_STATUSES = [
+  ['saved', 'Đã lưu'], ['applied', 'Đã nộp'], ['interviewing', 'Phỏng vấn'], ['offer', 'Nhận offer'], ['rejected', 'Không đạt'],
+];
+export const statusName = value => (APPLICATION_STATUSES.find(([key]) => key === value) || [, 'Đã lưu'])[1];
+export function statusCounts(items) {
+  const counts = Object.fromEntries(APPLICATION_STATUSES.map(([key]) => [key, 0]));
+  for (const item of items) if (item.status in counts) counts[item.status] += 1;
+  return counts;
+}

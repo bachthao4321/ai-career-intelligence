@@ -16,6 +16,7 @@ from app.repositories.accounts import AccountRepository
 from app.repositories.jobs import JobRepository
 from app.schemas.accounts import (
     MAX_SAVED_JOBS,
+    ApplicationStatus,
     Credentials,
     SavedJobList,
     SavedJobOut,
@@ -40,6 +41,10 @@ class JobNotFound(Exception):
 
 
 class SavedLimitReached(Exception):
+    pass
+
+
+class NotSaved(Exception):
     pass
 
 
@@ -111,7 +116,15 @@ class AccountService:
     async def saved_jobs(self, user: User) -> SavedJobList:
         rows = await self.accounts.saved_jobs(user.id, self.jobs.visible, MAX_SAVED_JOBS)
         return SavedJobList(
-            items=[SavedJobOut(job=JobSummary.model_validate(job), saved_at=at) for job, at in rows]
+            items=[
+                SavedJobOut(
+                    job=JobSummary.model_validate(job),
+                    saved_at=saved.created_at,
+                    status=saved.status,  # validated against ApplicationStatus; DB CHECK mirrors it
+                    status_updated_at=saved.status_updated_at,
+                )
+                for job, saved in rows
+            ]
         )
 
     async def save_job(self, user: User, job_id: uuid.UUID) -> None:
@@ -125,4 +138,9 @@ class AccountService:
 
     async def unsave_job(self, user: User, job_id: uuid.UUID) -> None:
         await self.accounts.unsave(user.id, job_id)
+        await self.accounts.commit()
+
+    async def set_status(self, user: User, job_id: uuid.UUID, status: ApplicationStatus) -> None:
+        if not await self.accounts.set_status(user.id, job_id, status):
+            raise NotSaved
         await self.accounts.commit()

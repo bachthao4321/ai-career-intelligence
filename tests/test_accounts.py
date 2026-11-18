@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.security.passwords import hash_password, verify_password
-from app.schemas.accounts import Credentials
+from app.schemas.accounts import Credentials, StatusUpdate
 
 
 def test_password_hash_round_trip_uses_unique_salts() -> None:
@@ -25,3 +25,11 @@ def test_credentials_normalize_email_and_bound_password() -> None:
         Credentials(email="ana@example.com", password="x" * 129)
     with pytest.raises(ValidationError):
         Credentials.model_validate({"email": "ana@example.com", "password": "12345678", "x": 1})
+
+
+def test_status_update_accepts_only_pipeline_states() -> None:
+    for status in ("saved", "applied", "interviewing", "offer", "rejected"):
+        assert StatusUpdate(status=status).status == status
+    for bad in ("hired", "", "APPLIED"):
+        with pytest.raises(ValidationError):
+            StatusUpdate.model_validate({"status": bad})
