@@ -848,3 +848,10 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
 .job-footnote.semantic { color: var(--amber); }
 .active-filters .clear-filters { min-height: 44px; padding: 0 8px; font-size: .8125rem; font-weight: 600; color: var(--green); text-decoration: underline; }
 .count-pill[hidden] { display: none; }
+
+/* Tighter page headers: the topbar already separates content from the top edge. */
+.hero, .page-intro { padding: 14px 0 16px; }
+.hero h1, .page-intro h1 { line-height: 1.2; margin: 0 0 6px; }
+@media (max-width: 640px) {
+  .hero, .page-intro { padding: 10px 0 12px; }
+}
