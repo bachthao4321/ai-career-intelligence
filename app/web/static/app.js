@@ -1,9 +1,9 @@
-import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261118-8';
-import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261118-8';
-import { initJobs } from './jobs.js?v=20261118-8';
-import { initAnalytics } from './analytics.js?v=20261118-8';
-import { initCV } from './cv.js?v=20261118-8';
-import { initAccount } from './account.js?v=20261118-8';
+import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261118-11';
+import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261118-11';
+import { initJobs } from './jobs.js?v=20261118-11';
+import { initAnalytics } from './analytics.js?v=20261118-11';
+import { initCV } from './cv.js?v=20261118-11';
+import { initAccount } from './account.js?v=20261118-11';
 
 hydrateIcons();
 // Scroll offsets follow the actual sticky navigation height, including text scaling.
@@ -78,14 +78,16 @@ function renderDescription(content, text) {
       ? el('strong', { class: 'description-heading', text: part.text })
       : document.createTextNode(part.text)))));
 }
+const LANGUAGE_NAMES = { vi: 'Tiếng Việt', en: 'English' };
 function descriptionSection(job, title, actionsHost) {
   const content = el('div', { class: 'job-description' });
   renderDescription(content, job.description);
-  const note = el('p', { class: 'description-note', hidden: true });
   const heading = el('h3', { class: 'detail-section-label', text: 'Mô tả công việc' });
   const header = el('div', { class: 'description-header' }, heading);
-  const section = el('section', { class: 'description-section' }, header, note, content);
-  const status = el('p', { class: 'description-status', role: 'status' });
+  const section = el('section', { class: 'description-section' }, header, content);
+  // Full-width banner under the header: loading, failure (with retry) or translated (with undo).
+  const banner = el('div', { class: 'translation-banner', role: 'status', 'aria-live': 'polite', hidden: true });
+  section.banner = banner;
   const menu = el('details', { class: 'translation-menu' });
   const summaryLabel = el('span', { text: 'Dịch' });
   const summary = el('summary', { 'aria-label': 'Dịch tiêu đề và mô tả công việc' }, icon('globe'), summaryLabel, icon('chevron-down'));
@@ -94,32 +96,43 @@ function descriptionSection(job, title, actionsHost) {
   const buttons = [];
   function updateOptions() { buttons.forEach(item => item.setAttribute('aria-pressed', String(item.dataset.language === current))); }
   function closeMenu() { menu.open = false; summary.focus(); }
+  function showBanner(state, text, detail, action) {
+    banner.className = `translation-banner ${state}`;
+    const lead = state === 'loading' ? el('span', { class: 'spinner', 'aria-hidden': 'true' }) : icon(state === 'error' ? 'info' : 'check');
+    const copy = el('div', { class: 'translation-banner-copy' }, el('strong', { text }), detail ? el('span', { text: detail }) : null);
+    banner.replaceChildren(...[lead, copy, action].filter(Boolean));
+    banner.hidden = false;
+  }
+  function hideBanner() { banner.hidden = true; banner.replaceChildren(); }
+  const bannerButton = (text, onclick) => el('button', { class: 'text-button translation-banner-action', type: 'button', text, onclick });
   async function choose(target) {
     if (busy) return;
-    closeMenu();
+    if (menu.open) closeMenu();
     if (target === current) return;
     if (target === 'original') {
       title.textContent = job.title; title.removeAttribute('lang');
       renderDescription(content, job.description); content.removeAttribute('lang');
-      note.textContent = ''; note.hidden = true; current = 'original';
-      summaryLabel.textContent = 'Dịch'; status.textContent = ''; updateOptions(); return;
+      current = 'original'; summaryLabel.textContent = 'Dịch'; hideBanner(); updateOptions(); return;
     }
     busy = true; summary.setAttribute('aria-disabled', 'true'); summaryLabel.textContent = 'Đang dịch…';
     buttons.forEach(item => { item.disabled = true; });
-    status.textContent = 'Đang dịch tiêu đề và mô tả, vui lòng chờ…';
+    showBanner('loading', `Đang dịch sang ${LANGUAGE_NAMES[target]}…`, 'Tiêu đề và mô tả sẽ được thay khi dịch xong, thường mất vài giây.');
     try {
       const result = await api(`/jobs/${encodeURIComponent(job.id)}/description-translation`, { method: 'POST', json: { target }, signal: AbortSignal.timeout(300000) });
       if (!section.isConnected) return;
-      if (typeof result.title !== 'string' || !result.title.trim() || typeof result.text !== 'string' || !result.text.trim()) throw new Error('Bản dịch chưa đầy đủ. Vui lòng thử lại.');
+      if (typeof result.title !== 'string' || !result.title.trim() || typeof result.text !== 'string' || !result.text.trim()) throw new Error('Bản dịch chưa đầy đủ.');
       title.textContent = result.title; title.lang = target;
       renderDescription(content, result.text); content.lang = target;
-      note.textContent = 'Bản dịch tự động; hãy đối chiếu với bản gốc.'; note.hidden = false; current = target;
-      status.textContent = ''; updateOptions();
-    } catch (error) { if (section.isConnected) status.textContent = error.name === 'TimeoutError' ? 'Dịch mất quá nhiều thời gian. Vui lòng thử lại.' : error.message; }
-    finally {
+      current = target; updateOptions();
+      showBanner('done', `Đã dịch sang ${LANGUAGE_NAMES[target]}`, 'Bản dịch tự động, hãy đối chiếu với bản gốc khi cần.', bannerButton('Xem bản gốc', () => choose('original')));
+    } catch (error) {
+      if (!section.isConnected) return;
+      const reason = error.name === 'TimeoutError' ? 'Dịch mất quá nhiều thời gian.' : error.message;
+      showBanner('error', 'Chưa dịch được', `${reason} Nội dung vẫn đang hiển thị bản ${current === 'original' ? 'gốc' : LANGUAGE_NAMES[current]}.`, bannerButton('Thử lại', () => choose(target)));
+    } finally {
       busy = false; summary.removeAttribute('aria-disabled');
       buttons.forEach(item => { item.disabled = false; });
-      summaryLabel.textContent = current === 'original' ? 'Dịch' : current === 'vi' ? 'Tiếng Việt' : 'English';
+      summaryLabel.textContent = current === 'original' ? 'Dịch' : LANGUAGE_NAMES[current];
     }
   }
   const choices = [['original', 'Bản gốc'], ...(job.description_language === 'vi' ? [] : [['vi', 'Tiếng Việt']]), ...(job.description_language === 'en' ? [] : [['en', 'English']])];
@@ -131,7 +144,7 @@ function descriptionSection(job, title, actionsHost) {
   menu.append(summary, options);
   summary.addEventListener('click', event => { if (busy) event.preventDefault(); });
   menu.addEventListener('keydown', event => { if (event.key === 'Escape' && menu.open) { event.preventDefault(); event.stopPropagation(); closeMenu(); } });
-  actionsHost.append(menu, status);
+  actionsHost.append(menu);
   return section;
 }
 
@@ -152,7 +165,7 @@ async function openJob(id) {
     const sourceLink = link(job.source_url, 'Xem tin tuyển dụng gốc', 'job-source-link');
     const order = { required: 0, unspecified: 1, preferred: 2, negated: 3 };
     const tags = el('div', { class: 'job-tags' }, [...job.skills].sort((a, b) => (order[a.requirement] ?? 1) - (order[b.requirement] ?? 1)).map(skill => { const item = tag(skillLabel(skillName(skill.skill_slug, overview), skill.requirement), requirementTone(skill.requirement)); if (skill.requirement_cue) item.title = `Dựa trên: “${skill.requirement_cue}”`; return item; }));
-    $('job-detail').replaceChildren(heading, metadata, sourceLink, tags, description, el('div', { class: 'detail-footer' }, el('p', { text: `Cập nhật ${date(job.fetched_at)} · ${job.published_at ? `Đăng ${date(job.published_at)}` : 'Chưa có ngày đăng'}` })));
+    $('job-detail').replaceChildren(heading, description.banner, metadata, sourceLink, tags, description, el('div', { class: 'detail-footer' }, el('p', { text: `Cập nhật ${date(job.fetched_at)} · ${job.published_at ? `Đăng ${date(job.published_at)}` : 'Chưa có ngày đăng'}` })));
   } catch (error) { if (error.name !== 'AbortError' && detailController === current) $('job-detail').replaceChildren(emptyState('Chưa thể mở công việc.', error.message, 'info')); }
 }
 
