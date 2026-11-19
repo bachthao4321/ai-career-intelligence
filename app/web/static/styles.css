@@ -872,3 +872,56 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
   .cv-how { display: flex; flex-direction: column; padding-bottom: 24px; }
   .cv-how .cv-small-note { margin-top: auto; }
 }
+
+/* Job dialog: readable section labels, avatar centred on the company + title block. */
+.eyebrow, .dialog-top .eyebrow { font-size: .75rem; letter-spacing: .1em; }
+.detail-heading { align-items: center; }
+.detail-heading .detail-translation { align-self: flex-start; }
+/* Tighter vertical rhythm: header, meta, source link and skills read as one block. */
+.job-dialog .dialog-top { margin-bottom: 12px; }
+.job-dialog .detail-heading { margin-bottom: 12px; }
+.job-dialog .detail-meta { gap: 4px 16px; margin-bottom: 4px; }
+.job-dialog .job-source-link { min-height: 36px; margin: 0 0 8px; }
+.job-dialog .job-tags { margin-bottom: 12px; }
+.job-dialog .description-header { margin-top: 20px; }
+/* One shared centre line for avatar, company/title and the save + translate actions. */
+.job-dialog { padding-top: 16px; }
+.job-dialog .dialog-top { margin-bottom: 8px; }
+.job-dialog .detail-heading .company-name { margin-bottom: 2px; line-height: 1.4; }
+.job-dialog .detail-heading h2 { line-height: 1.3; }
+.job-dialog .detail-heading .company-avatar { width: 52px; height: 52px; }
+@media (min-width: 641px) {
+  .job-dialog .detail-heading .detail-translation {
+    align-self: center; display: flex; flex-wrap: wrap; align-items: center;
+    justify-content: flex-end; gap: 8px 12px;
+  }
+  .job-dialog .detail-translation .language-menu > summary { min-height: 40px; padding-inline: 12px; }
+  .job-dialog .detail-translation .description-status { flex-basis: 100%; text-align: right; }
+}
+/* Translation feedback lives in a full-width banner, never squeezing the title column. */
+.translation-banner { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); color: var(--ink); font-size: .875rem; line-height: 1.5; }
+.translation-banner[hidden] { display: none; }
+.translation-banner > svg { width: 18px; height: 18px; flex: none; }
+.translation-banner-copy { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; column-gap: 8px; }
+.translation-banner-copy strong { font-weight: 600; }
+.translation-banner-copy span { color: var(--text-secondary, var(--muted)); }
+.translation-banner-action { flex: none; min-height: 36px; padding: 0 4px; font-weight: 600; color: var(--green); white-space: nowrap; }
+.translation-banner-action:hover { text-decoration: underline; }
+.translation-banner.done { background: #eaf6ef; border-color: #b7ddc6; }
+.translation-banner.done > svg { color: #1d7a46; }
+.translation-banner.error { background: #fdf1ee; border-color: #efc9bf; }
+.translation-banner.error > svg { color: #b0452c; }
+.translation-banner.error .translation-banner-action { color: #9a3a24; }
+@media (max-width: 640px) {
+  .translation-banner { align-items: flex-start; flex-wrap: wrap; }
+  .translation-banner-copy { flex: 1 1 calc(100% - 30px); }
+  .translation-banner-action { margin-left: 30px; min-height: 32px; }
+}
+@media (max-width: 640px) {
+  .job-dialog .detail-heading .company-avatar { width: 40px; height: 40px; }
+  .job-dialog .detail-heading .detail-translation {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+  }
+  .job-dialog .detail-translation .language-menu > summary { min-height: 40px; }
+  .job-dialog .detail-translation .description-status { flex-basis: 100%; }
+}

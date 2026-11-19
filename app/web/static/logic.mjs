@@ -34,9 +34,46 @@ export const descriptionText = value => value.replace(/<br\s*\/?\s*>/gi, '\n');
 
 // Only highlight recognizable section labels; keep their wording and all text intact.
 const descriptionHeading = /^(\s*)((?:(?:yêu cầu|quyền lợi) đối với ứng viên|yêu cầu(?: công việc| ứng viên)?|trách nhiệm(?: công việc)?|mô tả công việc|quyền lợi(?: được hưởng)?|phúc lợi|nhiệm vụ(?: chính)?|kỹ năng(?: yêu cầu)?|về (?:công ty|chúng tôi|vị trí|công việc)|giới thiệu(?: về công ty)?|cách (?:ứng tuyển|nộp hồ sơ)|job (?:description|requirements|responsibilities|overview|summary|purpose)|(?:key |your )?responsibilities|(?:required |preferred )?(?:qualifications|skills|requirements)|(?:what you(?:'ll| will) (?:do|bring|need|get)|what we (?:offer|are looking for|provide)|about (?:the (?:role|job|company|team)|this (?:work area|role|position)|us)|who you are|who we are|your (?:profile|role|skills|experience)|how to apply|benefits|additional information|in return|we are looking for individuals who|qualities that will help your application stand out|what you might be working on as a graduate)|arbetsuppgifter|(?:dina |våra )?(?:arbetsuppgifter|kvalifikationer)|(?:vi söker dig som|om (?:tjänsten|rollen|oss|jobbet)|(?:din|vår) profil|krav|meriterande|ansvar|förmåner)))(\s*[:：?])?(?=\s|$)/iu;
+// Whole-line section titles seen across sources (sv, en, vi), compared after normalization.
+const KNOWN_HEADINGS = new Set([
+  'ansökan', 'din ansökan', 'om uppdraget', 'övrig information', 'övrigt', 'om dig', 'det är meriterande om du har',
+  'personliga egenskaper', 'praktisk information', 'obligatoriska krav', 'om företaget', 'arbetsbeskrivning',
+  'uppdragsinformation', 'det här kommer du göra', 'vi erbjuder', 'bra att veta', 'din roll', 'om anställningen',
+  'vi ser gärna att du har', 'huvudsakliga arbetsuppgifter', 'ansvarsområden', 'exempel på arbetsuppgifter', 'erfarenhet',
+  'vår rekryteringsprocess', 'vi söker dig som har', 'teknik & verktyg', 'kompetens', 'utbildning', 'villkor',
+  'du kommer bland annat att', 'i rollen kommer du bland annat att', 'vad du blir en del av', 'kontakt', 'tillträde',
+  'what you bring', 'nice to have', 'meritorious', "what you'll do", 'what you will do', 'what you will work on',
+  'assignment description', 'company description', 'requirements', 'responsibilities', 'qualifications', 'benefits',
+  'about you', 'the role', 'what we offer', "what we're looking for", 'who you are', 'perks', 'must have', 'must-haves',
+  'bonus points', 'preferred qualifications', 'minimum qualifications', 'basic qualifications', 'job description',
+  'your responsibilities', 'our offer', 'the team', 'why join us', 'tech stack', 'how to apply', 'your profile',
+  'thông tin chung', 'mô tả công việc', 'yêu cầu công việc', 'quyền lợi', 'phúc lợi', 'chế độ đãi ngộ', 'kinh nghiệm',
+  'địa điểm làm việc', 'thời gian làm việc', 'về chúng tôi', 'giới thiệu công ty', 'công việc của bạn',
+  'tại sao bạn sẽ yêu thích làm việc tại đây', 'vad vi erbjuder', 'role summary', 'important notes', 'uppdragsbeskrivning',
+  'your impact', 'för att lyckas och trivas i rollen ser vi att du har', 'what you need', 'about us', 'about the company',
+  'what you will own', "what you'll own", 'what you will learn', 'where you will work', 'our stack', 'the opportunity',
+]);
+// "Om Randstad" / "About GreenNode": a short about-the-company title, but not "Om du ..." ("If you ...").
+const ABOUT_TITLE = /^(om|about) (?!(du|ni|vi|you|we|this|the)\b)[\p{L}0-9&.' -]{2,40}$/iu;
+const headingKey = line => line.trim().toLocaleLowerCase('vi').replace(/[’`]/g, "'").replace(/\s*[:：?]\s*$/, '');
+// A standalone short line that is a known title, ends with a colon, or is written in capitals.
+export function isHeadingLine(value) {
+  const line = value.trim();
+  if (line.length < 3 || line.length > 70 || /https?:|www\.|^[-•*–·]/.test(line)) return false;
+  if (KNOWN_HEADINGS.has(headingKey(line))) return true;
+  if (ABOUT_TITLE.test(line) && line.split(/\s+/).length <= 4) return true;
+  if (line.split(/\s+/).length > 9) return false;
+  if (/[:：]$/.test(line) && !/[.!?;]\s/.test(line)) return true;
+  const letters = line.replace(/[^\p{L}]/gu, '');
+  return letters.length >= 4 && line === line.toLocaleUpperCase('vi') && line !== line.toLocaleLowerCase('vi');
+}
 export function descriptionSegments(value) {
   const text = descriptionText(value);
   return text.split(/(?<=\n)/).flatMap(line => {
+    if (isHeadingLine(line)) {
+      const start = line.length - line.trimStart().length, end = line.trimEnd().length;
+      return [{ text: line.slice(0, start), heading: false }, { text: line.slice(start, end), heading: true }, { text: line.slice(end), heading: false }];
+    }
     const match = descriptionHeading.exec(line);
     if (!match || (!match[3] && line.slice(match[0].length).trim())) return [{ text: line, heading: false }];
     return [

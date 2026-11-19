@@ -237,6 +237,23 @@ def cmc_job(base: str, path: str, fetched: str) -> Record | None:
     }
 
 
+VNG_DETAIL = "https://career.vng.com.vn/vi/tim-kiem-viec-lam/chi-tiet/"
+NEXT_DATA = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
+
+
+def vng_detail(slug: str) -> str | None:
+    """Full description from the job page: the listing only carries a flattened excerpt."""
+    match = NEXT_DATA.search(get(VNG_DETAIL + slug))
+    if not match:
+        return None
+    job = json.loads(match.group(1))["props"]["pageProps"].get("job_data") or {}
+    # The UI already titles the block "Mô tả công việc"; only the requirements need a heading.
+    description = html_to_text(job.get("description") or "")
+    requirement = html_to_text(job.get("requirement") or "")
+    parts = [description, f"Yêu cầu công việc\n{requirement}" if requirement else ""]
+    return "\n\n".join(part for part in parts if part) or None
+
+
 def vng_jobs(fetched: str) -> list[Record]:
     rows: list[Record] = []
     for page_number in range(1, 8):
@@ -253,15 +270,20 @@ def vng_jobs(fetched: str) -> list[Record]:
             location = job.get("location") or ""
             if not any(city in location.casefold() for city in ["hồ chí minh", "hà nội"]):
                 continue
-            description = html_to_text(job.get("description") or "")
+            try:
+                description = vng_detail(job["slug"]) or ""
+            except (OSError, ValueError, KeyError):
+                description = ""
+            time.sleep(0.5)
+            # Fall back to the flattened listing excerpt when the detail page is unavailable.
+            description = description or html_to_text(job.get("description") or "")
             if not description:
                 continue
             rows.append(
                 {
                     "source": "employer_ats",
                     "source_job_id": "vng:" + str(job["job_id"]),
-                    "source_url": "https://career.vng.com.vn/vi/tim-kiem-viec-lam/chi-tiet/"
-                    + job["slug"],
+                    "source_url": VNG_DETAIL + job["slug"],
                     "source_terms_url": "https://career.vng.com.vn/",
                     "title": job["title"],
                     "company": "VNG",
