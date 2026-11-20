@@ -109,6 +109,27 @@ async def test_model_adapter_strict_json_and_bounded_request(
     reserve.assert_awaited_once()
 
 
+@pytest.mark.parametrize("disable", [False, True])
+async def test_thinking_switch_only_sent_when_enabled(
+    disable: bool, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("app.services.ask.planner.reserve_daily_call", AsyncMock(return_value=True))
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        choice = {"finish_reason": "stop", "message": {"content": '{"route":"search"}'}}
+        return httpx.Response(200, json={"choices": [choice]})
+
+    config = settings.model_copy(
+        update={"agent_model_enabled": True, "agent_model_disable_thinking": disable}
+    )
+    planner = ModelPlanner(config, AsyncMock(), transport=httpx.MockTransport(handler))
+    assert (await planner.plan("find jobs")).route == "search"
+    expected = {"enable_thinking": False} if disable else None
+    assert bodies[0].get("chat_template_kwargs") == expected
+
+
 async def test_budget_exhausted_never_connects(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:

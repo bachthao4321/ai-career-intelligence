@@ -151,6 +151,18 @@ class ModelPlanner:
         headers = {}
         if settings.agent_model_api_key:
             headers["Authorization"] = "Bearer " + settings.agent_model_api_key.get_secret_value()
+        payload: dict[str, object] = {
+            "model": settings.agent_model_name,
+            "temperature": 0,
+            "max_tokens": 2048,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": question},
+            ],
+        }
+        if settings.agent_model_disable_thinking:
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
         try:
             async with httpx.AsyncClient(
                 timeout=20, trust_env=False, transport=self.transport
@@ -158,16 +170,7 @@ class ModelPlanner:
                 response = await client.post(
                     settings.agent_model_base_url + "/chat/completions",
                     headers=headers,
-                    json={
-                        "model": settings.agent_model_name,
-                        "temperature": 0,
-                        "max_tokens": 2048,
-                        "response_format": {"type": "json_object"},
-                        "messages": [
-                            {"role": "system", "content": system},
-                            {"role": "user", "content": question},
-                        ],
-                    },
+                    json=payload,
                 )
                 if response.status_code != 200 or len(response.content) > 64000:
                     raise ValueError("provider_error")
