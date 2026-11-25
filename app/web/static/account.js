@@ -1,5 +1,5 @@
-import { $, api, el, icon, jobCard, emptyState, loading, openDialog, toast, busy } from './ui.js?v=20261118-11';
-import { credentialProblem, usernameProblem, loginProblem, normalizeUsername, date, APPLICATION_STATUSES, statusName, statusCounts } from './logic.mjs?v=20261118-11';
+import { $, api, el, icon, jobCard, emptyState, loading, openDialog, toast, busy } from './ui.js?v=20261120-2';
+import { credentialProblem, usernameProblem, loginProblem, normalizeUsername, date, APPLICATION_STATUSES, statusName, statusCounts } from './logic.mjs?v=20261120-2';
 
 // Accounts use an HttpOnly session cookie; this module only tracks who is signed in and which jobs are saved.
 export function initAccount(context) {

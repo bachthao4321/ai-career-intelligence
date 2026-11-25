@@ -114,3 +114,18 @@ test('section titles are recognised by known phrase, trailing colon or capitals'
   const bold = descriptionSegments('Om uppdraget\nDu kommer att koda.\nVi erbjuder\nFriskvård').filter(part => part.heading).map(part => part.text);
   assert.deepEqual(bold, ['Om uppdraget', 'Vi erbjuder']);
 });
+
+test('translation progress is an estimate that never claims completion', async () => {
+  const { translationEstimateMs, translationProgress } = await import('../../app/web/static/logic.mjs');
+  assert.equal(translationEstimateMs(0), 5000);
+  assert.equal(translationEstimateMs(8208), 35832);
+  assert.equal(translationEstimateMs(10_000_000), 240000);
+  const estimate = 20000;
+  assert.equal(translationProgress(0, estimate), 0);
+  assert.equal(translationProgress(-5, estimate), 0);
+  assert.equal(translationProgress(10000, estimate), 45);
+  assert.equal(translationProgress(20000, estimate), 90);
+  const late = [30000, 60000, 600000].map(ms => translationProgress(ms, estimate));
+  assert.deepEqual(late, [...late].sort((a, b) => a - b));
+  assert.ok(late.every(value => value >= 90 && value <= 99));
+});

@@ -1,9 +1,9 @@
-import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261118-11';
-import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261118-11';
-import { initJobs } from './jobs.js?v=20261118-11';
-import { initAnalytics } from './analytics.js?v=20261118-11';
-import { initCV } from './cv.js?v=20261118-11';
-import { initAccount } from './account.js?v=20261118-11';
+import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261120-2';
+import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone, translationEstimateMs, translationProgress } from './logic.mjs?v=20261120-2';
+import { initJobs } from './jobs.js?v=20261120-2';
+import { initAnalytics } from './analytics.js?v=20261120-2';
+import { initCV } from './cv.js?v=20261120-2';
+import { initAccount } from './account.js?v=20261120-2';
 
 hydrateIcons();
 // Scroll offsets follow the actual sticky navigation height, including text scaling.
@@ -116,7 +116,19 @@ function descriptionSection(job, title, actionsHost) {
     }
     busy = true; summary.setAttribute('aria-disabled', 'true'); summaryLabel.textContent = 'Đang dịch…';
     buttons.forEach(item => { item.disabled = true; });
-    showBanner('loading', `Đang dịch sang ${LANGUAGE_NAMES[target]}…`, 'Tiêu đề và mô tả sẽ được thay khi dịch xong, thường mất vài giây.');
+    const estimate = translationEstimateMs(job.title.length + job.description.length);
+    const fill = el('span', { class: 'translation-progress-fill' });
+    const bar = el('div', { class: 'translation-progress', role: 'progressbar', 'aria-label': 'Tiến độ dịch (ước tính)', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': '0' }, fill);
+    const percent = el('span', { class: 'translation-percent', 'aria-hidden': 'true', text: '0%' });
+    showBanner('loading', `Đang dịch sang ${LANGUAGE_NAMES[target]}…`, `Ước tính khoảng ${Math.round(estimate / 1000)} giây. Tiêu đề và mô tả sẽ được thay khi dịch xong.`);
+    banner.querySelector('.translation-banner-copy strong').after(percent);
+    banner.querySelector('.translation-banner-copy').append(bar);
+    const started = performance.now();
+    const tick = () => {
+      const value = translationProgress(performance.now() - started, estimate);
+      fill.style.width = `${value}%`; percent.textContent = `${value}%`; bar.setAttribute('aria-valuenow', String(value));
+    };
+    const timer = setInterval(tick, 250);
     try {
       const result = await api(`/jobs/${encodeURIComponent(job.id)}/description-translation`, { method: 'POST', json: { target }, signal: AbortSignal.timeout(300000) });
       if (!section.isConnected) return;
@@ -130,6 +142,7 @@ function descriptionSection(job, title, actionsHost) {
       const reason = error.name === 'TimeoutError' ? 'Dịch mất quá nhiều thời gian.' : error.message;
       showBanner('error', 'Chưa dịch được', `${reason} Nội dung vẫn đang hiển thị bản ${current === 'original' ? 'gốc' : LANGUAGE_NAMES[current]}.`, bannerButton('Thử lại', () => choose(target)));
     } finally {
+      clearInterval(timer);
       busy = false; summary.removeAttribute('aria-disabled');
       buttons.forEach(item => { item.disabled = false; });
       summaryLabel.textContent = current === 'original' ? 'Dịch' : LANGUAGE_NAMES[current];

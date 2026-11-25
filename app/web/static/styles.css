@@ -907,6 +907,11 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
 .translation-banner-copy span { color: var(--text-secondary, var(--muted)); }
 .translation-banner-action { flex: none; min-height: 36px; padding: 0 4px; font-weight: 600; color: var(--green); white-space: nowrap; }
 .translation-banner-action:hover { text-decoration: underline; }
+.translation-progress { flex-basis: 100%; height: 6px; margin-top: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.translation-progress-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--green); transition: width .25s linear; }
+.translation-banner-copy:has(.translation-percent) > span:not(.translation-percent) { flex-basis: 100%; }
+.translation-percent { flex: none; margin-left: auto; min-width: 3.5ch; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--green); }
+@media (prefers-reduced-motion: reduce) { .translation-progress-fill { transition: none; } }
 .translation-banner.done { background: #eaf6ef; border-color: #b7ddc6; }
 .translation-banner.done > svg { color: #1d7a46; }
 .translation-banner.error { background: #fdf1ee; border-color: #efc9bf; }

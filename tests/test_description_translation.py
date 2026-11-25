@@ -47,14 +47,16 @@ async def test_translation_is_complete_cached_and_budgeted(
         body = json.loads(request.content)
         requests.append(body)
         assert body["response_format"]["type"] == "json_schema"
-        source = json.loads(body["messages"][1]["content"])["description"]
+        lines = json.loads(body["messages"][1]["content"])["lines"]
+        schema = body["response_format"]["json_schema"]["schema"]["properties"]["lines"]
+        assert schema["minItems"] == schema["maxItems"] == len(lines)
         return httpx.Response(
             200,
             json={
                 "choices": [
                     {
                         "finish_reason": "stop",
-                        "message": {"content": json.dumps({"text": source.strip()})},
+                        "message": {"content": json.dumps({"lines": lines})},
                     }
                 ]
             },
@@ -65,8 +67,10 @@ async def test_translation_is_complete_cached_and_budgeted(
     text = "Svensk beskrivning och teknik.\n" * 180
     first = await translator.translate(text, "vi", "jobtech", "https://example.com")
     again = await translator.translate(text, "vi", "jobtech", "https://example.com")
-    assert first == again and len(requests) == len(split_description(text)) == reserve.await_count
-    assert "".join(json.loads(r["messages"][1]["content"])["description"] for r in requests) == text
+    assert first == again == text
+    assert len(requests) == len(split_description(text)) == reserve.await_count
+    sent = sum(len(json.loads(r["messages"][1]["content"])["lines"]) for r in requests)
+    assert sent == 180
     await translator.translate(text, "en", "jobtech", "https://example.com")
     assert reserve.await_count == 2 * len(split_description(text))
 
@@ -97,7 +101,7 @@ async def test_failure_or_quota_never_return_partial_translation(
                 "choices": [
                     {
                         "finish_reason": "stop",
-                        "message": {"content": json.dumps({"text": "partial"})},
+                        "message": {"content": json.dumps({"lines": ["partial"]})},
                     }
                 ]
             },
@@ -145,3 +149,70 @@ async def test_reviewed_title_reused_without_extra_model_call() -> None:
     assert result.title == "Lập trình viên Backend"
     assert result.title_source == "reviewed"
     assert translator.translate.await_count == 1
+
+
+@pytest.mark.parametrize("disable", [False, True])
+async def test_thinking_switch_is_sent_only_when_configured(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings, disable: bool
+) -> None:
+    monkeypatch.setattr(
+        "app.services.translation.descriptions.reserve_daily_call", AsyncMock(return_value=True)
+    )
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        content = json.dumps({"lines": ["Bản dịch"]})
+        return httpx.Response(
+            200, json={"choices": [{"finish_reason": "stop", "message": {"content": content}}]}
+        )
+
+    config = settings.model_copy(
+        update={
+            "agent_model_enabled": True,
+            "agent_daily_call_limit": 10,
+            "agent_model_disable_thinking": disable,
+        }
+    )
+    translator = DescriptionTranslator(config, None, transport=httpx.MockTransport(handler))  # type: ignore[arg-type]
+    await translator.translate("Short text", "vi", "jobtech", "https://example.com")
+    expected = {"enable_thinking": False} if disable else None
+    assert bodies[0].get("chat_template_kwargs") == expected
+
+
+@pytest.mark.parametrize(
+    ("returned", "expected"),
+    [
+        (["Tiêu đề", "  - Mục một", "Mục hai"], None),
+        (["Tiêu đề", "Mục một gộp mục hai"], "model_unavailable"),
+    ],
+)
+async def test_line_breaks_survive_and_merged_lines_are_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    settings: Settings,
+    returned: list[str],
+    expected: str | None,
+) -> None:
+    monkeypatch.setattr(
+        "app.services.translation.descriptions.reserve_daily_call", AsyncMock(return_value=True)
+    )
+    sent = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(json.loads(request.content)["messages"][1]["content"])["lines"])
+        content = json.dumps({"lines": returned})
+        return httpx.Response(
+            200, json={"choices": [{"finish_reason": "stop", "message": {"content": content}}]}
+        )
+
+    config = settings.model_copy(update={"agent_model_enabled": True, "agent_daily_call_limit": 10})
+    translator = DescriptionTranslator(config, None, transport=httpx.MockTransport(handler))  # type: ignore[arg-type]
+    source = "Rubrik\n\n  - Punkt ett\nPunkt två\n"
+    if expected:
+        with pytest.raises(ValueError, match=expected):
+            await translator.translate(source, "vi", "jobtech", "https://example.com")
+        assert not translator._cache
+        return
+    result = await translator.translate(source, "vi", "jobtech", "https://example.com")
+    assert sent == [["Rubrik", "- Punkt ett", "Punkt två"]]
+    assert result == "Tiêu đề\n\n  - Mục một\nMục hai\n"

@@ -156,6 +156,11 @@ async def translate_titles(
                             "model": settings.agent_model_name,
                             "temperature": 0,
                             "max_tokens": 4096,
+                            **(
+                                {"chat_template_kwargs": {"enable_thinking": False}}
+                                if settings.agent_model_disable_thinking
+                                else {}
+                            ),
                             "response_format": response_format([str(i) for i in range(len(batch))]),
                             "messages": [
                                 {"role": "system", "content": PROMPT},

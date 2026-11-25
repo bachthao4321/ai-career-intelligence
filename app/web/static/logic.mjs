@@ -112,3 +112,17 @@ export function statusCounts(items) {
   for (const item of items) if (item.status in counts) counts[item.status] += 1;
   return counts;
 }
+
+// Estimated translation time from source length: about 4 ms per character measured on the
+// local model (8,208 characters in ~31 s), plus a fixed start-up cost.
+export function translationEstimateMs(characters) {
+  return Math.min(240000, Math.max(5000, 3000 + 4 * Math.max(0, characters)));
+}
+
+// The API answers once, so progress is an estimate: linear to 90% at the expected time,
+// then easing towards 99% until the real result arrives. Never reports 100% on its own.
+export function translationProgress(elapsedMs, estimateMs) {
+  const elapsed = Math.max(0, elapsedMs);
+  if (elapsed < estimateMs) return Math.floor((90 * elapsed) / estimateMs);
+  return Math.min(99, Math.floor(90 + 9 * (1 - Math.exp(-(elapsed - estimateMs) / estimateMs))));
+}
