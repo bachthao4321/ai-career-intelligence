@@ -34,6 +34,7 @@ async def test_translation_is_cached_and_invalidated_without_changing_original_e
             "agent_model_enabled": True,
             "agent_daily_call_limit": 3,
             "llm_min_interval_seconds": 0,
+            "agent_model_disable_thinking": True,
         }
     )
     calls = []
@@ -41,6 +42,7 @@ async def test_translation_is_cached_and_invalidated_without_changing_original_e
     def handle(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         assert body["response_format"]["type"] == "json_schema"
+        assert body["chat_template_kwargs"] == {"enable_thinking": False}
         items = json.loads(body["messages"][1]["content"])["items"]
         assert all(set(item) == {"id", "title"} for item in items)
         calls.append(body)
