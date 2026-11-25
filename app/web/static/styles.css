@@ -930,3 +930,17 @@ dialog::backdrop { background: rgb(15 23 42 / 55%); backdrop-filter: none; }
   .job-dialog .detail-translation .language-menu > summary { min-height: 40px; }
   .job-dialog .detail-translation .description-status { flex-basis: 100%; }
 }
+/* Similar jobs: compact list under the description, each row opens that job. */
+.similar-section { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+.similar-section .detail-section-label { margin: 0 0 10px; }
+.similar-status { color: var(--muted); font-size: .875rem; }
+.similar-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.similar-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; transition: border-color .15s, background .15s; }
+.similar-item:hover { border-color: var(--green); background: var(--canvas); }
+.similar-item:focus-visible { outline: 2px solid var(--focus-ring, var(--green)); outline-offset: 2px; }
+.similar-item .company-avatar { width: 36px; height: 36px; font-size: .8125rem; }
+.similar-item > svg { width: 16px; height: 16px; flex: none; color: var(--muted); }
+.similar-item:hover > svg { color: var(--green); }
+.similar-copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.similar-company, .similar-meta { font-size: .8125rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.similar-title { font-size: .9375rem; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }

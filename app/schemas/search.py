@@ -123,3 +123,17 @@ class SearchResponse(BaseModel):
     rrf_k: int = 60
     rrf_weights: tuple[float, float] = (0.5, 1.0)
     rerank: RerankInfo = Field(default_factory=RerankInfo)
+
+
+class SimilarJob(BaseModel):
+    job_id: uuid.UUID
+    title: str
+    company: str | None
+    location: str | None
+    workplace_type: str
+    source: str
+    score: float
+
+
+class SimilarJobs(BaseModel):
+    items: list[SimilarJob]
