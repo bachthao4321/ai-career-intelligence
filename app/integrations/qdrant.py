@@ -67,6 +67,28 @@ class QdrantStore:
             result.update(str(row["id"]) for row in rows)
         return result
 
+    async def vectors(self, point_ids: list[str]) -> list[list[float]]:
+        """Stored vectors for the given points, in request order; missing points are skipped."""
+        rows = await self._call(
+            "POST",
+            "/points",
+            json={"ids": point_ids[:256], "with_payload": False, "with_vector": True},
+        )
+        by_id = {str(row["id"]): row.get("vector") for row in rows}
+        result = []
+        for point_id in point_ids[:256]:
+            vector = by_id.get(point_id)
+            if vector is None:
+                continue
+            if (
+                not isinstance(vector, list)
+                or len(vector) != self.dimension
+                or not all(isinstance(value, int | float) for value in vector)
+            ):
+                raise VectorBackendUnavailable("Invalid stored vector")
+            result.append([float(value) for value in vector])
+        return result
+
     async def upsert(self, points: list[dict[str, Any]]) -> None:
         for start in range(0, len(points), 64):
             result = await self._call(

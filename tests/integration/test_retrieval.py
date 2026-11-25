@@ -19,7 +19,7 @@ from app.main import create_app
 from app.schemas.ingestion import JobRecord
 from app.schemas.search import SearchFilters, SearchRequest
 from app.services.search.indexing import IndexAlreadyRunning, index_documents, namespace
-from app.services.search.service import DenseSearchUnavailable, SearchService
+from app.services.search.service import DenseSearchUnavailable, SearchService, SimilarJobNotFound
 from tests.retrieval_helpers import TestEmbedder
 
 pytestmark = [
@@ -306,3 +306,109 @@ async def test_private_vectors_are_never_sent_to_remote_backend(
         assert result.effective_mode == "bm25"
         assert "local_source_requires_local_vector_backend" in result.warnings
         assert h.embedder.calls == 0
+
+
+async def test_similar_jobs_rank_by_meaning_and_skip_the_job_and_its_duplicates(
+    harness: Harness, record: JobRecord
+) -> None:
+    h = harness
+    anchor = record.model_copy(update={"description": "Python Python Python services"})
+    duplicate = anchor.model_copy(update={"source_job_id": "job-1-copy"})
+    close = record.model_copy(
+        update={"source_job_id": "job-2", "title": "Data Engineer", "description": "Python ETL"}
+    )
+    far = record.model_copy(
+        update={
+            "source_job_id": "job-3",
+            "title": "Java Developer",
+            "description": "Java Java Java Java Spring",
+        }
+    )
+    await import_records(h.engine, [anchor, duplicate, close, far], h.settings)
+    async with async_sessionmaker(h.engine)() as session:
+        ids = dict((await session.execute(select(Job.source_job_id, Job.id))).tuples().all())
+    with pytest.raises(DenseSearchUnavailable, match="dense_index_not_ready"):
+        await h.service.similar(ids["job-1"], 5)
+    await index_documents(h.engine, h.settings, h.embedder, h.store)
+
+    # Either listing of the duplicated posting gives the same neighbours, never itself.
+    for listing in ("job-1", "job-1-copy"):
+        similar = await h.service.similar(ids[listing], 5)
+        assert [item.title for item in similar] == ["Data Engineer", "Java Developer"]
+        assert similar[0].score > similar[1].score
+    assert [item.title for item in await h.service.similar(ids["job-1"], 1)] == ["Data Engineer"]
+    with pytest.raises(SimilarJobNotFound):
+        await h.service.similar(uuid.uuid4(), 5)
+
+    def check() -> None:
+        with TestClient(create_app(h.settings, embedder=h.embedder)) as client:
+            response = client.get(f"/jobs/{ids['job-2']}/similar", params={"limit": 2})
+            assert response.status_code == 200, response.text
+            items = response.json()["items"]
+            assert items[0]["title"] == "Backend Developer" and len(items) == 2
+            assert set(items[0]) == {
+                "job_id",
+                "title",
+                "company",
+                "location",
+                "workplace_type",
+                "source",
+                "score",
+            }
+            assert client.get(f"/jobs/{uuid.uuid4()}/similar").status_code == 404
+            assert client.get(f"/jobs/{ids['job-2']}/similar?limit=11").status_code == 422
+
+    await asyncio.to_thread(check)
+
+
+async def test_similar_jobs_report_vector_outage(harness: Harness, record: JobRecord) -> None:
+    h = harness
+    await import_records(h.engine, [record], h.settings)
+    await index_documents(h.engine, h.settings, h.embedder, h.store)
+    async with async_sessionmaker(h.engine)() as session:
+        job_id = await session.scalar(select(Job.id))
+    assert job_id is not None
+    async with httpx.AsyncClient(
+        base_url=h.settings.qdrant_url, transport=httpx.MockTransport(lambda _: httpx.Response(503))
+    ) as client:
+        store = QdrantStore(client, h.store.collection, h.embedder.dimension)
+        service = SearchService(h.engine, h.settings, h.embedder, store)
+        with pytest.raises(VectorBackendUnavailable):
+            await service.similar(job_id, 5)
+
+
+async def test_similar_jobs_cap_each_company_and_skip_reposted_roles(
+    harness: Harness, record: JobRecord
+) -> None:
+    h = harness
+    rows = [record.model_copy(update={"description": "Python " * 6})]
+    for number, (company, title) in enumerate(
+        [
+            ("Acme", "Python Developer"),
+            ("Acme", "Python Developer"),  # same role re-posted with other text
+            ("Acme", "Senior Python Developer"),
+            ("Acme", "Python Lead"),
+            ("Other", "Python Engineer"),
+        ],
+        start=2,
+    ):
+        rows.append(
+            record.model_copy(
+                update={
+                    "source_job_id": f"job-{number}",
+                    "company": company,
+                    "title": title,
+                    "description": "Python " * (6 + number) + f"posting {number}",
+                }
+            )
+        )
+    await import_records(h.engine, rows, h.settings)
+    await index_documents(h.engine, h.settings, h.embedder, h.store)
+    async with async_sessionmaker(h.engine)() as session:
+        anchor = await session.scalar(select(Job.id).where(Job.source_job_id == "job-1"))
+    assert anchor is not None
+    similar = await h.service.similar(anchor, 10)
+    companies = [item.company for item in similar]
+    assert companies.count("Acme") == 2 and "Other" in companies
+    roles = [(item.company, item.title) for item in similar]
+    assert len(roles) == len(set(roles))

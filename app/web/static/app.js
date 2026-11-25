@@ -1,9 +1,9 @@
-import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261118-7';
-import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261118-7';
-import { initJobs } from './jobs.js?v=20261118-7';
-import { initAnalytics } from './analytics.js?v=20261118-7';
-import { initCV } from './cv.js?v=20261118-7';
-import { initAccount } from './account.js?v=20261118-7';
+import { $, api, el, icon, hydrateIcons, tag, skillName, avatar, meta, link, sourceBadge, jobPresentation, clearJobPresentationCache, loading, emptyState, openDialog, toast } from './ui.js?v=20261122-1';
+import { number, sourceName, workplaceName, date, duration, descriptionSegments, descriptionText, skillLabel, requirementTone } from './logic.mjs?v=20261122-1';
+import { initJobs } from './jobs.js?v=20261122-1';
+import { initAnalytics } from './analytics.js?v=20261122-1';
+import { initCV } from './cv.js?v=20261122-1';
+import { initAccount } from './account.js?v=20261122-1';
 
 hydrateIcons();
 // Scroll offsets follow the actual sticky navigation height, including text scaling.
@@ -135,6 +135,29 @@ function descriptionSection(job, title, actionsHost) {
   return section;
 }
 
+// Nearest jobs by meaning from stored vectors. Supplementary: hidden when unavailable or empty.
+function similarSection(job, signal) {
+  const list = el('ul', { class: 'similar-list' });
+  const status = el('p', { class: 'similar-status', text: 'Đang tìm việc làm tương tự…' });
+  const section = el('section', { class: 'similar-section', 'aria-labelledby': 'similar-title' },
+    el('h3', { id: 'similar-title', class: 'detail-section-label', text: 'Việc làm tương tự' }), status, list);
+  api(`/jobs/${encodeURIComponent(job.id)}/similar?limit=5`, { signal }).then(result => {
+    if (!section.isConnected) return;
+    if (!result.items.length) { section.remove(); return; }
+    status.remove();
+    list.replaceChildren(...result.items.map(item => el('li', {},
+      el('button', { class: 'similar-item', type: 'button', 'aria-label': `Xem chi tiết: ${item.title}${item.company ? `, ${item.company}` : ''}`,
+        onclick: () => { $('job-dialog').scrollTop = 0; openJob(item.job_id); } },
+        avatar(item.company),
+        el('span', { class: 'similar-copy' },
+          el('span', { class: 'similar-company', text: item.company || 'Chưa có tên công ty' }),
+          el('span', { class: 'similar-title', text: item.title }),
+          el('span', { class: 'similar-meta', text: [item.location, item.workplace_type === 'unknown' ? null : workplaceName(item.workplace_type)].filter(Boolean).join(' · ') })),
+        icon('arrow-right')))));
+  }).catch(error => { if (error.name !== 'AbortError') section.remove(); });
+  return section;
+}
+
 async function openJob(id) {
   detailController?.abort(); const current = new AbortController(); detailController = current;
   $('job-detail').replaceChildren(loading('Đang đọc thông tin công việc…')); openDialog('job-dialog');
@@ -152,7 +175,7 @@ async function openJob(id) {
     const sourceLink = link(job.source_url, 'Xem tin tuyển dụng gốc', 'job-source-link');
     const order = { required: 0, unspecified: 1, preferred: 2, negated: 3 };
     const tags = el('div', { class: 'job-tags' }, [...job.skills].sort((a, b) => (order[a.requirement] ?? 1) - (order[b.requirement] ?? 1)).map(skill => { const item = tag(skillLabel(skillName(skill.skill_slug, overview), skill.requirement), requirementTone(skill.requirement)); if (skill.requirement_cue) item.title = `Dựa trên: “${skill.requirement_cue}”`; return item; }));
-    $('job-detail').replaceChildren(heading, metadata, sourceLink, tags, description, el('div', { class: 'detail-footer' }, el('p', { text: `Cập nhật ${date(job.fetched_at)} · ${job.published_at ? `Đăng ${date(job.published_at)}` : 'Chưa có ngày đăng'}` })));
+    $('job-detail').replaceChildren(heading, metadata, sourceLink, tags, description, similarSection(job, current.signal), el('div', { class: 'detail-footer' }, el('p', { text: `Cập nhật ${date(job.fetched_at)} · ${job.published_at ? `Đăng ${date(job.published_at)}` : 'Chưa có ngày đăng'}` })));
   } catch (error) { if (error.name !== 'AbortError' && detailController === current) $('job-detail').replaceChildren(emptyState('Chưa thể mở công việc.', error.message, 'info')); }
 }
 
